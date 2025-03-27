@@ -1,0 +1,12 @@
+ADBC
+real    1m14.036s
+user    0m0.030s
+sys     0m0.124s
+
+ODBC
+Query execution and fetch time: 107.90 seconds
+Total rows fetched: 9520000
+
+real    2m2.493s
+user    0m0.046s
+sys     0m0.202s

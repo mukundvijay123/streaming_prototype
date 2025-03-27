@@ -1,0 +1,74 @@
+# Byte-compiled / cached files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+.env/
+.venv/
+env/
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Jupyter Notebook checkpoints
+.ipynb_checkpoints/
+
+# Testing
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Logs and debug files
+logs/
+*.log
+*.out
+*.err
+debug.log
+
+# IDE / Editor specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*.sublime-project
+*.sublime-workspace
+
+# Docker and deployment
+docker-compose.override.yml
+.envrc
+
+# MyPy type checking
+.mypy_cache/
+dmypy.json
+.pyre/
+
+# Profiling data
+.prof
+
+# Pytest cache
+.pytest_cache/
+
+# Temporary files
+*.tmp
+*.bak
+
+# Local database / SQLite
+*.sqlite3
+*.db
+
+# Jupyter Notebook metadata
+.ipynb_checkpoints/
+
+# AWS, GCP, Azure credentials (ensure sensitive files are ignored)
+*.pem
+*.key
+*.json
