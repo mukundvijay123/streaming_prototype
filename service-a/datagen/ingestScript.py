@@ -3,9 +3,9 @@ import random
 from datetime import datetime, timedelta
 
 # Database connection details
-DATABASE = "fastanalytics"
+DATABASE = "multidb"
 USER = "postgres"
-PASSWORD = "123456789"
+PASSWORD = "postgres"
 HOST = "localhost"
 PORT = "5432"
 

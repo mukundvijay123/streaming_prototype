@@ -25,7 +25,7 @@ def broadcast(subscriber_set, queue):
 
                 # Send the entire table at once
                 writer.write_table(event)  
-
+                print(event)
                 # Close the writer to signal completion
                 writer.close()
 

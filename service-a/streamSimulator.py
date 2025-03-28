@@ -4,25 +4,31 @@ from datetime import datetime,timedelta
 from time import sleep
 
 def setup():
-    DB_URI = "postgresql://postgres:123456789@localhost:5432/fastanalytics"
+    DB_URI = "postgresql://postgres:postgres@localhost:5432/multidb"
     conn=adbc.connect(uri=DB_URI)
     return conn
 
-def formatTime(timestamp):
-    formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S')
-    return formatted_timestamp
+# def formatTime(timestamp):
+#     formatted_timestamp = timestamp.strftime('%Y-%m-%d %H:%M:%S')
+#     return formatted_timestamp
 
-def queryDB(conn,queue):
-    timeToBegin='2025-03-26 09:00:00'
-    time=datetime.strptime(timeToBegin,'%Y-%m-%d %H:%M:%S')
-    cursor=conn.cursor()
-    while(True):
-        query="SELECT * FROM stock_prices WHERE timestamp = $1::TIMESTAMP ;"
-        cursor.execute(query,(formatTime(time),))
-        event=cursor.fetch_arrow_table()
-        #print(event)
+def formatTime(time):
+    return time.strftime('%Y-%m-%d %H:%M:%S')
+
+
+def queryDB(conn, queue):
+    timeToBegin = '2025-03-27 09:00:00'
+    time = datetime.strptime(timeToBegin, '%Y-%m-%d %H:%M:%S')
+    cursor = conn.cursor()
+    
+    while True:
+        query = "SELECT * FROM stock_prices WHERE timestamp = $1;"
+        cursor.execute(query, (time,))
+        event = cursor.fetch_arrow_table()  # ADBC supports Arrow format
+        
         queue.put(event)
-        time=time+timedelta(seconds=1)
+        
+        time += timedelta(seconds=1)
         sleep(1)
 
 
