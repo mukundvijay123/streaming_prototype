@@ -5,7 +5,7 @@ pip install -r requirements.txt
 cd datagen
 python ingestScript.py
 deactivate
-cd ..
+cd ../..
 cd service-b/
 python -m venv env
 source env/bin/activate
