@@ -22,10 +22,10 @@ def queryDB(conn, queue):
     cursor = conn.cursor()
     
     while True:
-        query = "SELECT * FROM stock_prices WHERE timestamp = $1;"
+        query = "SELECT * FROM stock_prices_2 WHERE timestamp = $1;"
         cursor.execute(query, (time,))
         event = cursor.fetch_arrow_table()  # ADBC supports Arrow format
-        
+        print(event)
         queue.put(event)
         
         time += timedelta(seconds=1)

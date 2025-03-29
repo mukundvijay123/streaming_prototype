@@ -4,7 +4,7 @@ import json
 
 def fetchSchema(conn):
     cursor=conn.cursor()
-    cursor.execute("SELECT * FROM stock_prices LIMIT 1")
+    cursor.execute("SELECT * FROM stock_prices_2 LIMIT 1")
     arrow_schema = cursor.fetch_schema()
     return arrow_schema
 
