@@ -1,12 +1,17 @@
 import psycopg2
+import os
+from dotenv import load_dotenv
 
-# Database connection details
-DATABASE = "multidb"
-USER = "postgres"
-PASSWORD = "postgres"
-HOST = "localhost"
-PORT = "5432"
-CSV_FILE_PATH = r"C:\Users\Eshaan Mathur\Downloads\streaming_prototype\stock_data2.csv"
+# Load environment variables from .env file
+load_dotenv()
+
+# Database connection details from .env
+DATABASE = os.getenv("DATABASE")
+USER = os.getenv("USER")
+PASSWORD = os.getenv("PASSWORD")
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
+CSV_FILE_PATH = os.getenv("CSV_FILE_PATH")
 
 # Connect to PostgreSQL
 conn = psycopg2.connect(

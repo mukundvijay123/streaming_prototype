@@ -4,7 +4,7 @@ from datetime import datetime,timedelta
 from time import sleep
 
 def setup():
-    DB_URI = "postgresql://postgres:postgres@localhost:5432/multidb"
+    DB_URI = "postgresql://postgres:123456789@localhost:5432/fastanalytics"
     conn=adbc.connect(uri=DB_URI)
     return conn
 
