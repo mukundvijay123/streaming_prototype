@@ -2,37 +2,6 @@ import pyarrow as pa
 import pyarrow.flight as flight
 import json
 
-
-
-def subscribe(address,FlightServerAddress):
-    flight_client=flight.connect(address)
-    payload={
-        "address":FlightServerAddress
-    }
-    payload_bytes=json.dumps(payload).encode("utf-8")
-    action=flight.Action("subscribe",payload_bytes)
-    result=flight_client.do_action(action)
-    for response in result:
-        print("Server response:", response.body.to_pybytes().decode("utf-8"))
-
-
-
-def unsubscribe(address,FlightServerAddress):
-    flight_client=flight.connect(address)
-    payload={
-        "address":FlightServerAddress
-    }
-    payload_bytes=json.dumps(payload).encode("utf-8")
-    action=flight.Action("unsubscribe",payload_bytes)
-    result=flight_client.do_action(action)
-    for response in result:
-        print("Server response:", response.body.to_pybytes().decode("utf-8"))
-
-
-import pyarrow as pa
-import pyarrow.flight as flight
-import json
-
 def subscribe_test(address, FlightServerAddress):
     try:
         # Establish connection
