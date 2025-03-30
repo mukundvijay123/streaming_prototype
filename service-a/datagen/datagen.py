@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 start_time = datetime(2025, 3, 27, 9, 0, 0)
 
 # Initialize variables
-num_rows = 50000  # Total rows required
+num_rows = 86400  # Total rows required
 data = []
 stock_symbol = "XYZ"
 current_time = start_time
@@ -34,5 +34,5 @@ while rows_generated < num_rows:
 df = pd.DataFrame(data, columns=["timestamp", "stock", "price", "volume", "bid_price", "ask_price", "spread"])
 
 # Save to CSV
-df.to_csv("stock_data2.csv", index=False)
-print("Generated 50,000 rows of stock price data and saved to 'stock_data.csv'.")
+df.to_csv("stock_data.csv", index=False)
+print("Generated 86400 rows of stock price data and saved to 'stock_data.csv'.")

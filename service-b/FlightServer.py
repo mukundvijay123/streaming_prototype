@@ -1,8 +1,6 @@
 import pyarrow.flight as flight
 import multiprocessing.shared_memory
-import numpy as np
 import ctypes
-import os
 from datetime import datetime
 
 BUFFER_SIZE = 10000
