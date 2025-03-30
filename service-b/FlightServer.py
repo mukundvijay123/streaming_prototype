@@ -1,59 +1,117 @@
+import pyarrow as pa
 import pyarrow.flight as flight
 import multiprocessing.shared_memory
-import numpy as np
-import ctypes
-import os
 from datetime import datetime
 
 BUFFER_SIZE = 10000
-EVENT_SIZE = 4096
+HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
 
 class FlightServer(flight.FlightServerBase):
-    def __init__(self, shared_memory_name, lock, write_index, location="grpc://127.0.0.1:8815"):
-        super(FlightServer, self).__init__(location)
-        self.location = location
-        self.shared_memory = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
+    def __init__(self, shared_memory_name, lock, write_index, read_index, data_section_start, 
+                write_data_idx, read_data_idx, location, event):
+        super().__init__(location)
+        self.shm_name = shared_memory_name
+        self.event = event
         self.lock = lock
         self.write_index = write_index
-        self.event_counter = 0
-        print(f"[{datetime.now().isoformat()}] [FlightServer] INIT | SharedMem: {shared_memory_name} | WriteIdx: {write_index.value}")
+        self.read_index = read_index
+        self.data_section_start = data_section_start
+        self.write_data_idx = write_data_idx
+        self.read_data_idx = read_data_idx
+        self.shm = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
+        self.data_section_size = self.shm.size - self.data_section_start.value
 
-    def do_put(self, context, descriptor, reader, writer):
-        self.event_counter += 1
-        current_time = datetime.now().isoformat()
-        print(f"\n[{current_time}] [FlightServer] START PUT | Event #{self.event_counter}")
-        
+    def do_put(self, context, descriptor, reader, flight_writer):
+        """Handles incoming data from clients"""
         try:
-            event_descriptor = descriptor.path[0].decode('utf-8')
-            print(f"[{current_time}] [FlightServer] DESCRIPTOR | {event_descriptor}")
+            table = reader.read_all()
             
-            full_table = reader.read_all()
-            event_dict = full_table.to_pydict()
-            event_str = str(event_dict)
-            print(f"[{current_time}] [FlightServer] RAW DATA | {event_str[:100]}...")
-
+            # Serialize table to bytes
+            sink = pa.BufferOutputStream()
+            writer = pa.ipc.new_stream(sink, table.schema)
+            writer.write(table)
+            writer.close()
+            serialized = sink.getvalue().to_pybytes()
+            message_size = len(serialized)
+        
             with self.lock:
-                current_write_pos = self.write_index.value
-                start_pos = current_write_pos * EVENT_SIZE
+                # Check if buffer indices are full
+                buffer_usage = (self.write_index.value - self.read_index.value) % BUFFER_SIZE
+                if buffer_usage == BUFFER_SIZE - 1:
+                    raise BufferError("Circular buffer indices are full. Consumer cannot keep up.")
                 
-                # Prepare and write data
-                event_bytes = event_str.encode('utf-8')[:EVENT_SIZE]
-                self.shared_memory.buf[start_pos:start_pos + len(event_bytes)] = event_bytes
+                # Calculate actual position in shared memory
+                write_pos = self.write_data_idx.value
+                actual_write_pos = self.data_section_start.value + write_pos
                 
-                # Update index
-                new_write_index = (current_write_pos + 1) % BUFFER_SIZE
-                self.write_index.value = new_write_index
+                # Check space availability based on read position
+                if self.write_data_idx.value < self.read_data_idx.value:
+                    # Case 1: read_data_idx > write_data_idx
+                    available_space = self.read_data_idx.value - self.write_data_idx.value
+                    if message_size > available_space:
+                        raise BufferError(f"Not enough space in buffer. Need {message_size}, have {available_space}")
+                    
+                    # Write in one chunk (no wrap-around needed)
+                    self.shm.buf[actual_write_pos:actual_write_pos + message_size] = serialized
+                    new_data_pos = write_pos + message_size
+                else:
+                    # Case 2 & 3: read_data_idx <= write_data_idx
+                    # Try to write after write_pos up to the end of buffer
+                    space_to_end = self.data_section_size - write_pos
+                    
+                    if message_size <= space_to_end:
+                        # Case 2: Enough space until end of buffer - no wrap needed
+                        self.shm.buf[actual_write_pos:actual_write_pos + message_size] = serialized
+                        new_data_pos = (write_pos + message_size) % self.data_section_size
+                    else:
+                        # Case 3: Need to wrap around
+                        # First chunk from write_pos to end of buffer
+                        first_chunk_size = space_to_end
+                        second_chunk_size = message_size - first_chunk_size
+                        
+                        # Check if we have enough space after wrap-around
+                        if second_chunk_size > self.read_data_idx.value:
+                            raise BufferError(f"Not enough space after wrap-around. Need {second_chunk_size}, have {self.read_data_idx.value}")
+                        
+                        # Write first chunk
+                        self.shm.buf[actual_write_pos:actual_write_pos + first_chunk_size] = serialized[:first_chunk_size]
+                        
+                        # Write second chunk at beginning of data section
+                        self.shm.buf[self.data_section_start.value:self.data_section_start.value + second_chunk_size] = serialized[first_chunk_size:]
+                        
+                        print(f"[{datetime.now().isoformat()}] [Server] WRAPPED WRITE | " 
+                              f"First: {first_chunk_size}, Second: {second_chunk_size}")
+                        
+                        new_data_pos = second_chunk_size
                 
-                print(f"[{current_time}] [FlightServer] WRITE COMPLETE | Pos: {current_write_pos}→{new_write_index}")
-                print(f"[{current_time}] [FlightServer] CONTENT | {event_str[:50]}...")
-                print(f"[{current_time}] [FlightServer] BUFFER STATUS | Used: {(new_write_index - current_write_pos) % BUFFER_SIZE}/{BUFFER_SIZE}")
-
+                # Write header (size + offset)
+                header_pos = self.write_index.value * HEADER_SIZE
+                self.shm.buf[header_pos:header_pos+8] = message_size.to_bytes(8, 'little')
+                self.shm.buf[header_pos+8:header_pos+16] = write_pos.to_bytes(8, 'little')
+                
+                # Update indices
+                old_write_index = self.write_index.value
+                old_data_pos = self.write_data_idx.value
+                self.write_index.value = (self.write_index.value + 1) % BUFFER_SIZE
+                self.write_data_idx.value = new_data_pos
+                
+                print(f"[{datetime.now().isoformat()}] [Server] STORED MESSAGE | "
+                      f"Size: {message_size} bytes | "
+                      f"Write Index: {old_write_index}→{self.write_index.value} | "
+                      f"Data Position: {old_data_pos}→{self.write_data_idx.value} | "
+                      f"Read Data Position: {self.read_data_idx.value}")
+                
+                # Calculate data buffer usage
+                if self.write_data_idx.value >= self.read_data_idx.value:
+                    data_usage = self.write_data_idx.value - self.read_data_idx.value
+                else:
+                    data_usage = self.data_section_size - (self.read_data_idx.value - self.write_data_idx.value)
+                
+                self.event.set()
+                print(f"[{datetime.now().isoformat()}] [Server] DATA BUFFER STATUS | "
+                      f"{data_usage}/{self.data_section_size} bytes used "
+                      f"({data_usage/self.data_section_size*100:.1f}%)")
+            
         except Exception as e:
-            print(f"[{current_time}] [FlightServer] ERROR | {str(e)}")
+            print(f"[{datetime.now().isoformat()}] [Server] ERROR | {str(e)}")
             raise
-        finally:
-            print(f"[{datetime.now().isoformat()}] [FlightServer] END PUT | Event #{self.event_counter}")
-
-    def __del__(self):
-        print(f"[{datetime.now().isoformat()}] [FlightServer] CLEANUP | Resources released")
-        self.shared_memory.close()

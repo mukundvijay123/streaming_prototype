@@ -18,6 +18,7 @@ def broadcast(subscriber_set, queue):
                 flight_client = flight.connect(subscriber)
 
                 # Define the flight descriptor (stream name)
+                
                 descriptor = flight.FlightDescriptor.for_path("stock_stream")
 
                 # Open a Flight writer
@@ -25,7 +26,6 @@ def broadcast(subscriber_set, queue):
 
                 # Send the entire table at once
                 writer.write_table(event)  
-                print(event)
                 # Close the writer to signal completion
                 writer.close()
 
