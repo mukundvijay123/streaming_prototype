@@ -6,6 +6,7 @@ from Client import subscribe_test
 from FlightServer import FlightServer
 from event_consumer import continuous_consumer,consumer
 from datetime import datetime
+from websocketServer import start_websocket_server
 
 BUFFER_SIZE = 10000
 EVENT_SIZE = 4096
@@ -27,6 +28,7 @@ if __name__ == "__main__":
     RemoteAddress = 'grpc://127.0.0.1:8815'
     
     print(f"[{datetime.now().isoformat()}] [Main] INIT | Starting system...")
+    print(f"[{datetime.now().isoformat()}] [Main] DATA FLOW STARTED | Shared memory initialized")
     
     # Start FlightServer
     server_process = multiprocessing.Process(
@@ -37,27 +39,28 @@ if __name__ == "__main__":
     server_process.start()
     sleep(2)
 
-    # Start event consumer
-    consumer_process = multiprocessing.Process(
-        target=continuous_consumer,
-        args=(shared_memory.name, lock, write_index, read_index,BUFFER_SIZE,EVENT_SIZE),
+    # Start WebSocket server
+    websocket_process = multiprocessing.Process(
+        target=start_websocket_server,
+        args=(shared_memory.name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE),
         daemon=True
     )
-    consumer_process.start()
-    print(f"[{datetime.now().isoformat()}] [Main] CONSUMER STARTED | PID: {consumer_process.pid}")
+    websocket_process.start()
+    print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER STARTED | PID: {websocket_process.pid}")
 
     # Initiate data transfer
     print(f"[{datetime.now().isoformat()}] [Main] SUBSCRIBING | Connecting to {RemoteAddress}")
     subscribe_test(RemoteAddress, FlightServerAddress)
 
     try:
-        print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Press Ctrl+C to stop")
+        print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Monitoring data flow")
         while True:
             sleep(1)
     except KeyboardInterrupt:
-        print(f"\n[{datetime.now().isoformat()}] [Main] SHUTDOWN STARTED")
+        print(f"\n[{datetime.now().isoformat()}] [Main] SHUTDOWN STARTED | Stopping data flow")
         server_process.terminate()
-        consumer_process.terminate()
+        websocket_process.terminate()
         shared_memory.close()
         shared_memory.unlink()
         print(f"[{datetime.now().isoformat()}] [Main] SHUTDOWN COMPLETE | Resources released")
+        print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER TERMINATED")
