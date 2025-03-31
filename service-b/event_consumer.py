@@ -21,8 +21,10 @@ def consumer(shared_memory_name, lock, write_index, read_index,BUFFER_SIZE,EVENT
             read_index.value = (read_index.value + 1) % BUFFER_SIZE
             print(f"[{current_time}] [Consumer] INDEX UPDATE | {old_read_index}→{read_index.value}")
             print(f"[{current_time}] [Consumer] EVENT EXTRACTED ")
+            print(f"[{current_time}] [Consumer] DATA SENT TO WEBSOCKET SERVER | {event_str[:200]}...")
             return event_str
         else:
+            print(f"[{current_time}] [Consumer] NO NEW DATA TO CONSUME")
             return None
 
 

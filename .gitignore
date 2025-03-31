@@ -72,3 +72,4 @@ dmypy.json
 *.pem
 *.key
 *.json
+env/

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Streaming Data Viewer</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #data-container {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 400px;
+            overflow-y: scroll;
+            background-color: #f9f9f9;
+        }
+        .data-item {
+            margin: 5px 0;
+            padding: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Streaming Data Viewer</h1>
+    <div id="data-container"></div>
+
+    <script>
+        const dataContainer = document.getElementById('data-container');
+        const socket = new WebSocket('ws://localhost:8765');
+
+        socket.onmessage = (event) => {
+            const dataItem = document.createElement('div');
+            dataItem.className = 'data-item';
+            dataItem.textContent = event.data;
+            dataContainer.appendChild(dataItem);
+
+            // Auto-scroll to the bottom
+            dataContainer.scrollTop = dataContainer.scrollHeight;
+        };
+
+        socket.onopen = () => {
+            console.log('WebSocket connection established.');
+        };
+
+        socket.onerror = (error) => {
+            console.error('WebSocket error:', error);
+        };
+
+        socket.onclose = () => {
+            console.log('WebSocket connection closed.');
+        };
+    </script>
+</body>
+</html>
