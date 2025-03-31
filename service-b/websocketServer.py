@@ -1,48 +1,79 @@
 import asyncio
-import websockets
 from datetime import datetime
-from event_consumer import consumer
+import multiprocessing.shared_memory
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+import uvicorn
+import multiprocessing
+from event_consumer import consumer  # Import your custom consumer function
 
-# A set to store all active WebSocket connections
+app = FastAPI()
+
+# Enable CORS for all origins (if needed for the client-side app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allows all origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Set of active WebSocket connections
 connected_clients = set()
 
-async def websocket_handler(websocket, path, shared_memory_name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE):
-    # Add the new client to the set of connected clients
-    connected_clients.add(websocket)
-    print(f"[{datetime.now().isoformat()}] [WebSocket] CLIENT CONNECTED | {websocket.remote_address}")
-    
+async def consumer_task(shared_memory_name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE):
+    """
+    Continuously consumes events and, if any clients are connected, broadcasts the event.
+    """
+    shared_memory=multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
     try:
         while True:
-            # Use the existing consumer function to fetch events
-            event_str = consumer(shared_memory_name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE)
-            
-            if event_str:
-                # Broadcast the event to all connected clients
-                await asyncio.gather(
-                    *[client.send(event_str) for client in connected_clients if client.open]
-                )
-                print(f"[{datetime.now().isoformat()}] [WebSocket] EVENT BROADCASTED TO CLIENTS | {event_str[:100]}...")
+            event_str = consumer(shared_memory, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE)
+            if event_str is not None:
+                print(f"[{datetime.now().isoformat()}] [Consumer] New event: {event_str[:100]}...")
+                # Send event to all connected clients
                 for client in connected_clients:
-                    print(f"[{datetime.now().isoformat()}] [WebSocket] CLIENT | {client.remote_address}")
+                        try:
+                            await client.send_text(event_str)
+                        except Exception as e:
+                            print(f"[{datetime.now().isoformat()}] [WebSocket] Failed to send: {e}")                
+                        print(f"[{datetime.now().isoformat()}] [Consumer] Event broadcast to {len(connected_clients)} client(s)")
             else:
-                # No new events, wait briefly
-                print(f"[{datetime.now().isoformat()}] [WebSocket] NO NEW EVENTS TO BROADCAST")
-                await asyncio.sleep(0.1)
-    except websockets.exceptions.ConnectionClosed:
-        print(f"[{datetime.now().isoformat()}] [WebSocket] CLIENT DISCONNECTED | {websocket.remote_address}")
-    finally:
-        # Remove the client from the set when it disconnects
-        connected_clients.remove(websocket)
-
-def start_websocket_server(shared_memory_name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE):
-    async def handler(websocket, path):
-        await websocket_handler(websocket, path, shared_memory_name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE)
-
-    print(f"[{datetime.now().isoformat()}] [WebSocket] SERVER STARTING | Port 8765")
-    try:
-        asyncio.run(
-            websockets.serve(handler, "0.0.0.0", 8765)
-        )
+                print(f"[{datetime.now().isoformat()}] [Consumer] No new events")
+            await asyncio.sleep(1)  # Brief pause before polling again
     except Exception as e:
-        print(f"[{datetime.now().isoformat()}] [WebSocket] SERVER ERROR | {str(e)}")
-        raise
+        print(e)
+    finally:
+        shared_memory.close()
+
+
+@app.websocket("/ws")
+async def websocket_handler(websocket: WebSocket):
+    """
+    Handles incoming WebSocket connections.
+    """
+    await websocket.accept()
+    connected_clients.add(websocket)
+    print(f"[{datetime.now().isoformat()}] [WebSocket] Client connected: {websocket.client}")
+
+    try:
+        while True:
+            message = await websocket.receive_text()
+            print(f"[{datetime.now().isoformat()}] [WebSocket] Received: {message}")
+    except WebSocketDisconnect:
+        print(f"[{datetime.now().isoformat()}] [WebSocket] Client disconnected: {websocket.client}")
+    finally:
+        connected_clients.discard(websocket)
+
+def start_websocket_server(shared_memory_name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE, host="0.0.0.0", port=8765):
+    """
+    Starts the WebSocket server with event consumer.
+    """
+    @app.on_event("startup")
+    async def start_background_tasks():
+        loop = asyncio.get_running_loop()
+        loop.create_task(consumer_task(shared_memory_name, lock, write_index, read_index, BUFFER_SIZE, EVENT_SIZE))
+
+    uvicorn.run(app, host=host, port=port)
+
+

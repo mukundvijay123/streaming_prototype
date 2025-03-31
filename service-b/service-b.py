@@ -39,15 +39,6 @@ if __name__ == "__main__":
     server_process.start()
     sleep(2)
 
-    # Start event consumer
-    consumer_process = multiprocessing.Process(
-        target=continuous_consumer,
-        args=(shared_memory.name, lock, write_index, read_index,BUFFER_SIZE,EVENT_SIZE),
-        daemon=True
-    )
-    consumer_process.start()
-    print(f"[{datetime.now().isoformat()}] [Main] CONSUMER STARTED | PID: {consumer_process.pid}")
-
     # Start WebSocket server
     websocket_process = multiprocessing.Process(
         target=start_websocket_server,
@@ -68,7 +59,6 @@ if __name__ == "__main__":
     except KeyboardInterrupt:
         print(f"\n[{datetime.now().isoformat()}] [Main] SHUTDOWN STARTED | Stopping data flow")
         server_process.terminate()
-        consumer_process.terminate()
         websocket_process.terminate()
         shared_memory.close()
         shared_memory.unlink()
