@@ -121,7 +121,7 @@ class FlightServer(flight.FlightServerBase):
                 print(f"[{datetime.now().isoformat()}] [Server] DATA BUFFER STATUS | "
                       f"{data_usage}/{self.data_section_size} bytes used "
                       f"({data_usage/self.data_section_size*100:.1f}%)")
-              #  self.event.set()
+                self.event.set()
         except Exception as e:
             print(f"[{datetime.now().isoformat()}] [Server] ERROR | {str(e)}")
             raise
