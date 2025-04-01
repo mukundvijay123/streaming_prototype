@@ -5,7 +5,11 @@ from datetime import datetime
 
 BUFFER_SIZE = 10000
 HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
-
+#0                   16 * 10K, 
+#[HEADER1, HEADER2, ... 10000, DATA1, DATA2, ...]
+# R, W                           R_D_I, W_D_I
+#[SIZE -> 8 BYTES]
+#[OFFSET -> 8 BYTES]
 class FlightServer(flight.FlightServerBase):
     def __init__(self, shared_memory_name, lock, write_index, read_index, data_section_start, 
                 write_data_idx, read_data_idx, location, event):
@@ -45,6 +49,11 @@ class FlightServer(flight.FlightServerBase):
                 actual_write_pos = self.data_section_start.value + write_pos
                 
                 # Check space availability based on read position
+                #DATA:
+                #[....R.........W....]
+                #MESSAGE -> MESSAGE1 + MESSAGE2
+                #MESSAGE1 => DATA_SECTION_SIZE - WRITE_INDEX => WRITE_INDEX : DATA_SECTION_SIZE
+                #MESSAGE2 => 0: LEN(MESSAGE) - LEN(MESSAGE1)
                 if self.write_data_idx.value < self.read_data_idx.value:
                     # Case 1: read_data_idx > write_data_idx
                     available_space = self.read_data_idx.value - self.write_data_idx.value
@@ -85,6 +94,7 @@ class FlightServer(flight.FlightServerBase):
                         new_data_pos = second_chunk_size
                 
                 # Write header (size + offset)
+                #[HEADER1, HEADER2, HEADER3, .....]
                 header_pos = self.write_index.value * HEADER_SIZE
                 self.shm.buf[header_pos:header_pos+8] = message_size.to_bytes(8, 'little')
                 self.shm.buf[header_pos+8:header_pos+16] = write_pos.to_bytes(8, 'little')
@@ -107,11 +117,15 @@ class FlightServer(flight.FlightServerBase):
                 else:
                     data_usage = self.data_section_size - (self.read_data_idx.value - self.write_data_idx.value)
                 
-                self.event.set()
+                
                 print(f"[{datetime.now().isoformat()}] [Server] DATA BUFFER STATUS | "
                       f"{data_usage}/{self.data_section_size} bytes used "
                       f"({data_usage/self.data_section_size*100:.1f}%)")
-            
+              #  self.event.set()
         except Exception as e:
             print(f"[{datetime.now().isoformat()}] [Server] ERROR | {str(e)}")
             raise
+
+    def __del__(self):
+        print(f"[{datetime.now().isoformat()}] [FlightServer] CLEANUP | Resources released")
+        self.shm.close()
