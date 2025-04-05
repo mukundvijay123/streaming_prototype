@@ -1,5 +1,5 @@
 # Streaming Prototype
-
+Checkout tag v1.1 for latest working prototype
 ## Overview
 The `streaming_prototype` project consists of two services, **Service A** and **Service B**, that work together. This guide provides instructions to set up and run the project.
 
