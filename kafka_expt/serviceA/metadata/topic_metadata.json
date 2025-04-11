@@ -1,0 +1,20 @@
+{
+    "XYZ":{
+        "offset":-1 ,
+        "lastSegment":null,
+        "segmentLogSize":0,
+        "segments":[]
+    },
+    "ABC":{
+        "offset":-1 ,
+        "lastSegment":null,
+        "segmentLogSize":0,
+        "segments":[]
+    },
+    "LMN":{
+        "offset":-1 ,
+        "lastSegment":null ,
+        "segmentLogSize":0,
+        "segments":[]
+    }
+}

@@ -8,6 +8,7 @@ venv/
 .env/
 .venv/
 env/
+partitions/
 pip-log.txt
 pip-delete-this-directory.txt
 
@@ -71,5 +72,4 @@ dmypy.json
 # AWS, GCP, Azure credentials (ensure sensitive files are ignored)
 *.pem
 *.key
-*.json
 env/
