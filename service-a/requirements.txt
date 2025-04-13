@@ -11,3 +11,4 @@ pytz==2025.2
 six==1.17.0
 typing_extensions==4.12.2
 tzdata==2025.2
+readerwriterlock==1.0.9

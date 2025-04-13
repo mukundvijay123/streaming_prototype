@@ -1,38 +1,81 @@
-import pandas as pd
-import random
-from datetime import datetime, timedelta
+import psycopg2
+from psycopg2.extensions import ISOLATION_LEVEL_AUTOCOMMIT
+import os
+from dotenv import load_dotenv
 
-# Define start time
-start_time = datetime(2025, 3, 27, 9, 0, 0)
+# Load environment variables
+load_dotenv()
 
-# Initialize variables
-num_rows = 86400  # Total rows required
-data = []
-stock_symbol = "XYZ"
-current_time = start_time
-rows_generated = 0
+DATABASE = os.getenv("DATABASE")
+USER = os.getenv("USER")
+PASSWORD = os.getenv("PASSWORD")
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
+CSV_FOLDER_PATH = os.getenv("CSV_FOLDER_PATH")  # Folder containing CSVs
 
-# Generate stock market data
-while rows_generated < num_rows:
-    # Determine how many rows to generate for this second (1 to 30)
-    rows_this_second = min(random.randint(1, 30), num_rows - rows_generated)
-    
-    for _ in range(rows_this_second):
-        price = round(random.uniform(100, 200), 2)  # Random price between 100 and 200
-        volume = random.randint(100, 10000)  # Trade volume
-        bid_price = round(price - random.uniform(0.1, 1), 2)  # Bid price lower than market price
-        ask_price = round(price + random.uniform(0.1, 1), 2)  # Ask price higher than market price
-        spread = round(ask_price - bid_price, 2)  # Spread difference
-        
-        data.append([current_time, stock_symbol, price, volume, bid_price, ask_price, spread])
-    
-    # Move to next second
-    current_time += timedelta(seconds=1)
-    rows_generated += rows_this_second
+# Step 1: Connect to default DB and create target DB if needed
+conn = psycopg2.connect(
+    dbname="postgres",
+    user=USER,
+    password=PASSWORD,
+    host=HOST,
+    port=PORT
+)
+conn.set_isolation_level(ISOLATION_LEVEL_AUTOCOMMIT)
+cursor = conn.cursor()
 
-# Create DataFrame
-df = pd.DataFrame(data, columns=["timestamp", "stock", "price", "volume", "bid_price", "ask_price", "spread"])
+cursor.execute(f"SELECT 1 FROM pg_database WHERE datname = %s;", (DATABASE,))
+if not cursor.fetchone():
+    cursor.execute(f"CREATE DATABASE {DATABASE};")
+    print(f"Database '{DATABASE}' created.")
+else:
+    print(f"Database '{DATABASE}' already exists.")
 
-# Save to CSV
-df.to_csv("stock_data.csv", index=False)
-print("Generated 86400 rows of stock price data and saved to 'stock_data.csv'.")
+cursor.close()
+conn.close()
+
+# Step 2: Connect to target DB
+conn = psycopg2.connect(
+    dbname=DATABASE,
+    user=USER,
+    password=PASSWORD,
+    host=HOST,
+    port=PORT
+)
+cursor = conn.cursor()
+
+# Step 3: Create table
+cursor.execute("""
+    CREATE TABLE IF NOT EXISTS stock_prices_2 (
+        id SERIAL PRIMARY KEY,
+        timestamp TIMESTAMP NOT NULL,
+        stock_symbol VARCHAR(10) NOT NULL,
+        price NUMERIC(10, 2) NOT NULL,
+        volume INTEGER NOT NULL,
+        bid_price NUMERIC(10, 2) NOT NULL,
+        ask_price NUMERIC(10, 2) NOT NULL,
+        spread NUMERIC(10, 2) NOT NULL
+    );
+""")
+conn.commit()
+
+# Step 4: Ingest each CSV
+for filename in os.listdir(CSV_FOLDER_PATH):
+    if filename.endswith(".csv"):
+        csv_path = os.path.join(CSV_FOLDER_PATH, filename)
+        print(f"Ingesting: {csv_path}")
+        with open(csv_path, 'r') as file:
+            next(file)  # Skip header
+            cursor.copy_expert(
+                """
+                COPY stock_prices_2 (timestamp, stock_symbol, price, volume, bid_price, ask_price, spread)
+                FROM STDIN WITH CSV
+                """,
+                file
+            )
+        conn.commit()
+        print(f"✔ Done ingesting {filename}")
+
+cursor.close()
+conn.close()
+print(" All CSVs imported into stock_prices_2.")
