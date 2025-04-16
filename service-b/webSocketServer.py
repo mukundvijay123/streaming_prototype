@@ -26,6 +26,11 @@ shm = None  # Will be initialized in start_websocket_server
 
 # Consumer task: repeatedly calls shm.read() and puts the event onto an asyncio.Queue.
 async def consumerThread(shm: SharedMemoryResources, qu: asyncio.Queue):
+    shared_memory = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
+    shm = SharedMemoryResources(
+        shared_memory, lock, write_index, read_index,
+        data_section_start, write_data_idx, read_data_idx, event, event2
+    )
     while True:
         try:
             event = shm.read()
