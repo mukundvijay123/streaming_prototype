@@ -1,63 +1,90 @@
+import multiprocessing
+from time import sleep
 import pyarrow as pa
 import pyarrow.flight as flight
 import multiprocessing.shared_memory
 from datetime import datetime
+from clientUtils import subscribe, unsubscribe
+from FlightServer import FlightServer
+from multiprocessing import Event
+from simple_reader import simple_reader_process
 from SharedMemoryResources import SharedMemoryResources
+
 BUFFER_SIZE = 1000  # Max number of messages
 HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
-DATA_SECTION_SIZE = 2048 * 18  # TEST SIZE for data section
-#0                   16 * 10K, 
-#[HEADER1, HEADER2, ... 10000, DATA1, DATA2, ...]
-# R, W                           R_D_I, W_D_I
-#[SIZE -> 8 BYTES]
-#[OFFSET -> 8 BYTES]
-class FlightServer(flight.FlightServerBase):
-    def __init__(self, shared_memory_name, lock, write_index, read_index, data_section_start, 
-                write_data_idx, read_data_idx, location, event, event2):
-        super().__init__(location)
-        self.shm_name = shared_memory_name
-        self.event = event
-        self.lock = lock
-        self.write_index = write_index
-        self.read_index = read_index
-        self.data_section_start = data_section_start
-        self.write_data_idx = write_data_idx
-        self.read_data_idx = read_data_idx
-        self.shm = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
-        self.data_section_size = self.shm.size - self.data_section_start.value
-        self.event2 = event2
-    def do_put(self, context, descriptor, reader, flight_writer):
-        try:
-            table = reader.read_all()
-            
-            # Use the SharedMemoryResources class to write data
-            shared_memory = SharedMemoryResources(
-                multiprocessing.shared_memory.SharedMemory(name=self.shm_name),#THIS IS THR NAME
-                self.lock,
-                self.write_index,
-                self.read_index,
-                self.data_section_start,
-                self.write_data_idx,
-                self.read_data_idx,
-                self.event,
-                self.event2
-            )
-            
-            # Write the table to shared memory
-            write_success = shared_memory.write(table)
-            
-            if not write_success:
-                print(f"[{datetime.now().isoformat()}] [Server] WRITE FAILED | Will retry")
-                # You might want to implement retry logic here
-            
-        except Exception as e:
-            print(f"[{datetime.now().isoformat()}] [Server] ERROR | {str(e)}")
-            raise
+DATA_SECTION_SIZE = 2048 * 8  # 100MB for data section
 
-    def __del__(self):
-        print(f"[{datetime.now().isoformat()}] [FlightServer] CLEANUP | Resources released")
-        try:
-            if hasattr(self, 'shm'):
-                self.shm.close()
-        except Exception as e:
-            print(f"[{datetime.now().isoformat()}] [FlightServer] CLEANUP ERROR | {str(e)}")
+
+
+def startFlightServer(shared_memory_name, lock, write_index, read_index, data_section_start, 
+                     write_data_idx, read_data_idx, event, event2):
+    server = FlightServer(
+        shared_memory_name, 
+        lock, 
+        write_index, 
+        read_index,
+        data_section_start,
+        write_data_idx,
+        read_data_idx,
+        location='grpc://127.0.0.1:8816',
+        event=event,
+        event2=event2
+    )
+    print(f"[{datetime.now().isoformat()}] [Main] FLIGHT SERVER STARTING | Port 8816")
+    server.serve()
+
+if __name__ == "__main__":
+    # Calculate shared memory layout
+    headers_size = BUFFER_SIZE * HEADER_SIZE
+    total_memory_size = headers_size + DATA_SECTION_SIZE
+    
+    # Create shared memory and synchronization primitives
+    shm = multiprocessing.shared_memory.SharedMemory(create=True, size=total_memory_size)
+    lock = multiprocessing.Lock()
+    write_index = multiprocessing.Value('i', 0)
+    read_index = multiprocessing.Value('i', 0)
+    data_section_start = multiprocessing.Value('i', headers_size)
+    write_data_idx = multiprocessing.Value('i', 0)  # Track write position in data section
+    read_data_idx = multiprocessing.Value('i', 0)   # Track read position in data section
+    event = Event()
+    event2 = Event()
+    FlightServerAddress = 'grpc://127.0.0.1:8816'
+    RemoteAddress = 'grpc://127.0.0.1:8815'
+    
+    print(f"[{datetime.now().isoformat()}] [Main] INIT | Starting system...")
+    print(f"[{datetime.now().isoformat()}] [Main] MEMORY | Headers: {headers_size/1024:.1f}KB, Data: {DATA_SECTION_SIZE/1024/1024:.1f}MB")
+    
+    # Start FlightServer
+    server_process = multiprocessing.Process(
+        target=startFlightServer, 
+        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2),
+        daemon=True
+    )
+    server_process.start()
+    sleep(2)
+
+    reader = multiprocessing.Process(
+        target=simple_reader_process,
+        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2),
+        daemon=True
+    )
+    reader.start()
+    print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER STARTED | PID: {reader.pid}")
+
+    # Initiate data transfer
+    print(f"[{datetime.now().isoformat()}] [Main] SUBSCRIBING | Connecting to {RemoteAddress}")
+    subscribe("ABC",RemoteAddress, FlightServerAddress)
+    subscribe("LMN",RemoteAddress, FlightServerAddress)
+    subscribe("XYZ",RemoteAddress, FlightServerAddress)
+    try:
+        print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Monitoring data flow")
+        while True:
+            sleep(1)
+    except KeyboardInterrupt:
+        print(f"\n[{datetime.now().isoformat()}] [Main] SHUTDOWN STARTED | Stopping data flow")
+        server_process.terminate()
+        reader.terminate()
+        shm.close()
+        shm.unlink()
+        print(f"[{datetime.now().isoformat()}] [Main] SHUTDOWN COMPLETE | Resources released")
+        print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER TERMINATED")
