@@ -9,7 +9,7 @@ from FlightServer import FlightServer
 from multiprocessing import Event
 from simple_reader import simple_reader_process
 from SharedMemoryResources import SharedMemoryResources
-from webSocketServer import start_websocket_server
+from websocketserver import start_websocket_server
 BUFFER_SIZE = 1000  # Max number of messages
 HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
 DATA_SECTION_SIZE = 2048 * 8  # 100MB for data section
@@ -78,9 +78,9 @@ if __name__ == "__main__":
     server_process.start()
     sleep(2)
 
-    websocket_server=multiprocessing.Process(
+    websocket_server = multiprocessing.Process(
         target=start_websocket_server,
-        args=(shm.name,lock,write_data_idx,read_index,data_section_start,write_data_idx,read_data_idx,event,event2),
+        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2),
         daemon=True
     )
 
