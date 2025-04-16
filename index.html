@@ -29,7 +29,7 @@
 
     <script>
         const dataContainer = document.getElementById('data-container');
-        const socket = new WebSocket('ws://localhost:8765/ws');
+        const socket = new WebSocket('ws://localhost:8765/ws/LMN');
 
         socket.onmessage = (event) => {
             const dataItem = document.createElement('div');

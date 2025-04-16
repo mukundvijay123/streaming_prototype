@@ -1,5 +1,6 @@
 # simple_reader.py
 import multiprocessing.shared_memory
+import pyarrow as pa
 import time
 import json
 from datetime import datetime
@@ -34,13 +35,15 @@ def simple_reader_process(shared_memory_name, lock, write_index, read_index,
         while True:
             # Read data from shared memory
             event_data = shared_memory.read()
+            #print(event.schema.metadata)
             
             # If we got data, print it
-            if event_data is not None:
-                print(f"[{datetime.now().isoformat()}] [Reader] Received event: {json.dumps(event_data, default=str)}")
-            
+            if isinstance(event_data,pa.Table):
+                print("Hellooooooo",(event_data.schema.metadata[b"topic"]))
+                #print(f"[{datetime.now().isoformat()}] [Reader] Received event: {json.dumps(event_data, default=str)}")
+                
             # Sleep for a short time before checking again
-            time.sleep(2)
+            
     except KeyboardInterrupt:
         print(f"[{datetime.now().isoformat()}] [Reader] Process terminated by user")
     except Exception as e:
