@@ -5,7 +5,7 @@ from datetime import datetime
 from SharedMemoryResources import SharedMemoryResources
 BUFFER_SIZE = 1000  # Max number of messages
 HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
-DATA_SECTION_SIZE = 2048 * 18  # TEST SIZE for data section
+DATA_SECTION_SIZE = 2048 * 18  # 100MB for data section
 #0                   16 * 10K, 
 #[HEADER1, HEADER2, ... 10000, DATA1, DATA2, ...]
 # R, W                           R_D_I, W_D_I
@@ -28,8 +28,16 @@ class FlightServer(flight.FlightServerBase):
         self.event2 = event2
     def do_put(self, context, descriptor, reader, flight_writer):
         try:
-            table = reader.read_all()
+            table = reader.read_chunk()
+            if not table:
+                return
             
+            record_batch = table.data
+            schema_metadata = record_batch.schema
+
+
+           # new_schema = record_batch.schema.with_metadata(schema_metadata)
+            table = pa.Table.from_batches([record_batch], schema=schema_metadata)
             # Use the SharedMemoryResources class to write data
             shared_memory = SharedMemoryResources(
                 multiprocessing.shared_memory.SharedMemory(name=self.shm_name),#THIS IS THR NAME
