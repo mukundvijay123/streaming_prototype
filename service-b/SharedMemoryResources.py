@@ -7,13 +7,10 @@ from datetime import datetime
 from clientUtils import subscribe, unsubscribe
 from multiprocessing import Event, Lock
 
-BUFFER_SIZE = 1000  # Max number of messages
-HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
-DATA_SECTION_SIZE = 2048 * 18  # Data section size
 
 class SharedMemoryResources:
     def __init__(self, shm, lock, write_index, read_index, data_section_start, 
-                 write_data_idx, read_data_idx, data_available_event, space_available_event):
+                 write_data_idx, read_data_idx, data_available_event, space_available_event,header_size,buffer_size):
         self.shm = shm
         self.lock = lock
         self.write_index = write_index
@@ -25,6 +22,8 @@ class SharedMemoryResources:
         self.space_available_event = space_available_event  # Signals space is available to write
         self.space_available_event.set()  # Initially space is available
         self.data_section_size = self.shm.size - self.data_section_start.value
+        self.header_size = header_size
+        self.buffer_size = buffer_size
 
     def read(self):
         """Read from the global shared object"""
@@ -39,8 +38,8 @@ class SharedMemoryResources:
         try:
             if self.read_index.value != self.write_index.value:
                 # Read header (size + offset)
-                header_pos = self.read_index.value * HEADER_SIZE
-                header = self.shm.buf[header_pos:header_pos + HEADER_SIZE]
+                header_pos = self.read_index.value * self.header_size
+                header = self.shm.buf[header_pos:header_pos + self.header_size]
                 message_size = int.from_bytes(header[:8], 'little')
                 message_offset = int.from_bytes(header[8:], 'little')
                 
@@ -67,6 +66,7 @@ class SharedMemoryResources:
                     # Deserialize Arrow table
                     reader = pa.ipc.open_stream(message_data)
                     table = reader.read_all()
+                
                     
                     # Update read_data_idx to indicate we've processed this data
                     old_read_data_idx = self.read_data_idx.value
@@ -83,15 +83,15 @@ class SharedMemoryResources:
                     
                     # Update read index
                     old_read_index = self.read_index.value
-                    self.read_index.value = (self.read_index.value + 1) % BUFFER_SIZE
+                    self.read_index.value = (self.read_index.value + 1) % self.buffer_size
                     print(f"[{current_time}] [Consumer] INDEX UPDATE | {old_read_index}→{self.read_index.value}")
                     
                     # Calculate buffer usage
-                    buffer_usage = (self.write_index.value - self.read_index.value) % BUFFER_SIZE
-                    print(f"[{current_time}] [Consumer] BUFFER STATUS | {buffer_usage}/{BUFFER_SIZE} slots used")
+                    buffer_usage = (self.write_index.value - self.read_index.value) % self.buffer_size
+                    print(f"[{current_time}] [Consumer] BUFFER STATUS | {buffer_usage}/{self.buffer_size} slots used")
                     
                     # Convert to Python dict for JSON serialization
-                    result = table
+                    result = table.to_pydict()
                     
                     # Signal that space is available for writers
                     self.space_available_event.set()
@@ -104,7 +104,7 @@ class SharedMemoryResources:
                     
                     # Skip this message and move read pointers forward
                     old_read_index = self.read_index.value
-                    self.read_index.value = (self.read_index.value + 1) % BUFFER_SIZE
+                    self.read_index.value = (self.read_index.value + 1) % self.buffer_size
                     self.read_data_idx.value = (message_offset + message_size) % self.data_section_size
                     
                     # Signal that space is available for writers
@@ -138,7 +138,7 @@ class SharedMemoryResources:
                 self.lock.acquire()
                 try:
                     # Check if buffer indices are full
-                    if (self.write_index.value - self.read_index.value) % BUFFER_SIZE == BUFFER_SIZE - 1:
+                    if (self.write_index.value - self.read_index.value) % self.buffer_size == self.buffer_size - 1:
                         print(f"[{current_time}] [SharedMemory] QUEUE IS FULL, WAITING FOR READER...")
                         # Release the lock before waiting
                         self.lock.release()
@@ -221,14 +221,14 @@ class SharedMemoryResources:
                             new_data_pos = second_chunk_size
                     
                     # Write header (size + offset)
-                    header_pos = self.write_index.value * HEADER_SIZE
+                    header_pos = self.write_index.value * self.header_size
                     self.shm.buf[header_pos:header_pos+8] = message_size.to_bytes(8, 'little')
                     self.shm.buf[header_pos+8:header_pos+16] = write_pos.to_bytes(8, 'little')
                     
                     # Update indices
                     old_write_index = self.write_index.value
                     old_data_pos = self.write_data_idx.value
-                    self.write_index.value = (self.write_index.value + 1) % BUFFER_SIZE
+                    self.write_index.value = (self.write_index.value + 1) % self.buffer_size
                     self.write_data_idx.value = new_data_pos
                     
                     print(f"[{current_time}] [SharedMemory] STORED MESSAGE | "
