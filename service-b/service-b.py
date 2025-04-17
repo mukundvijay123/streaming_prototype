@@ -9,7 +9,7 @@ from FlightServer import FlightServer
 from multiprocessing import Event
 from simple_reader import simple_reader_process
 from SharedMemoryResources import SharedMemoryResources
-from websocketserver import start_websocket_server
+from webSocketServer import start_websocket_server
 BUFFER_SIZE = 1000  # Max number of messages
 HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
 DATA_SECTION_SIZE = 2048 * 8  # 100MB for data section

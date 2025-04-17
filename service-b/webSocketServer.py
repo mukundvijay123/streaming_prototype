@@ -1,3 +1,6 @@
+# webSocketServer.py
+import threading
+import queue
 import multiprocessing.shared_memory
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -7,12 +10,11 @@ import asyncio
 from datetime import datetime
 import pyarrow as pa
 import json
-import multiprocessing
 import uvicorn
 
 app = FastAPI()
 
-# Enable CORS for all origins
+# CORS (if needed)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,90 +23,92 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Global state
 system_metadata = systemMetadata()
-shm = None  # Will be initialized in start_websocket_server
+shm: SharedMemoryResources = None  # will be set in start_websocket_server
+event_queue: queue.Queue = queue.Queue()
 
-# Consumer task: repeatedly calls shm.read() and puts the event onto an asyncio.Queue.
-async def consumerThread(shm: SharedMemoryResources, qu: asyncio.Queue):
-    shared_memory = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
-    shm = SharedMemoryResources(
-        shared_memory, lock, write_index, read_index,
-        data_section_start, write_data_idx, read_data_idx, event, event2
-    )
+def blocking_consumer(shm: SharedMemoryResources, q: queue.Queue):
+    """
+    Runs in a background thread, blocking on shm.read(),
+    and enqueues each non-None pa.Table into a thread-safe queue.
+    """
     while True:
         try:
-            event = shm.read()
+            evt = shm.read()
         except Exception as e:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] [Consumer] Error in reading shared memory: {e}")
-            event = None
-        # If a None or invalid event is received, ignore it.
-        if event is not None:
-            await qu.put(event)
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] [ConsumerThread] Read error: {e}")
+            evt = None
+        if isinstance(evt, pa.Table):
+            q.put(evt)
+            print(q.qsize())
+        # avoid a tight busy loop
         
 
-# Broadcast task: pulls events from the queue and sends them to WebSocket subscribers.
-async def broadcast(qu: asyncio.Queue):
+async def broadcast_queue(q: queue.Queue):
+    """
+    Async task: pulls from the thread-safe queue via run_in_executor
+    and broadcasts each event to all subscribers of its topic.
+    """
+    loop = asyncio.get_event_loop()
     while True:
-        event = await qu.get()
-        # Skip if the event is None or not an Arrow table.
-        if event is None or not isinstance(event, pa.Table):
-            continue
-
+        # This will block only the thread in run_in_executor, not the event loop.
+        evt = await loop.run_in_executor(None, q.get)
         try:
-            event_topic = event.schema.metadata[b"topic"].decode()
-            event_json = json.dumps(event.to_pydict(), default=str)
+            topic = evt.schema.metadata[b"topic"].decode()
+            payload = json.dumps(evt.to_pydict(), default=str)
         except Exception as e:
-            print(f"[{datetime.now().strftime('%H:%M:%S')}] [Broadcast] Error fetching topic: {e}")
+            print(f"[{datetime.now().strftime('%H:%M:%S')}] [Broadcast] Invalid event: {e}")
             continue
 
-        subscribers = system_metadata.getSubscribers(event_topic)
-        for subscriber in subscribers:
+        subs = system_metadata.getSubscribers(topic)
+        for ws in subs:
             try:
-                await subscriber.send_text(event_json)
+                await ws.send_text(payload)
             except Exception as e:
-                print(f"[{datetime.now().strftime('%H:%M:%S')}] [Broadcast] Error sending to subscriber: {e}")
-                system_metadata.removeConsumer(event_topic, subscriber)
+                print(f"[{datetime.now().strftime('%H:%M:%S')}] [Broadcast] Send error: {e}")
+                system_metadata.removeConsumer(topic, ws)
 
-# WebSocket endpoint
 @app.websocket("/ws/{topic}")
 async def websocket_handler(websocket: WebSocket, topic: str):
     await websocket.accept()
     system_metadata.addTopic(topic)
     system_metadata.addConsumer(topic, websocket)
     print(f"[{datetime.now().isoformat()}] [WebSocket] Client connected on topic '{topic}'")
-
     try:
-        # Here you can add your protocol logic—for example, waiting for a client message.
-        message = await websocket.receive_text()
-        print(f"[{datetime.now().isoformat()}] [WebSocket] Received: {message}")
+        # Keep this handler alive until disconnect:
+        while True:
+            # We don't actually care about client messages,
+            # but awaiting receive_text() lets us catch a disconnect.
+            await websocket.receive_text()
     except WebSocketDisconnect:
         print(f"[{datetime.now().isoformat()}] [WebSocket] Client disconnected")
-    except Exception as e:
-        print(f"[{datetime.now().isoformat()}] [WebSocket] Error: {e}")
     finally:
         system_metadata.removeConsumer(topic, websocket)
 
-# Startup event: schedule the background consumer and broadcast tasks.
 @app.on_event("startup")
 async def startup_event():
-    qu = asyncio.Queue()
-    global shm
+    global shm, event_queue
     if shm is not None:
-        asyncio.create_task(consumerThread(shm, qu))
-        asyncio.create_task(broadcast(qu))
-        print(f"[{datetime.now().isoformat()}] [WebSocket] Consumer and Broadcast tasks started")
+        # Start the blocking consumer thread
+        t = threading.Thread(target=blocking_consumer, args=(shm, event_queue), daemon=True)
+        t.start()
+        # Start the async broadcast task
+        asyncio.create_task(broadcast_queue(event_queue))
+        print(f"[{datetime.now().isoformat()}] [WebSocket] Consumer thread & broadcaster started")
     else:
-        print(f"[{datetime.now().isoformat()}] [WebSocket] Shared memory not initialized at startup")
+        print(f"[{datetime.now().isoformat()}] [WebSocket] Shared memory NOT initialized on startup")
 
-# Function to start the WebSocket server.
 def start_websocket_server(shared_memory_name, lock, write_index, read_index,
                            data_section_start, write_data_idx, read_data_idx,
                            event, event2, host="0.0.0.0", port=8765):
+
     global shm
-    shared_memory = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
+    shm_raw = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
     shm = SharedMemoryResources(
-        shared_memory, lock, write_index, read_index,
-        data_section_start, write_data_idx, read_data_idx, event, event2
+        shm_raw, lock, write_index, read_index,
+        data_section_start, write_data_idx, read_data_idx,
+        event, event2
     )
 
     print(f"[{datetime.now().isoformat()}] [WebSocket] Starting server on {host}:{port}")

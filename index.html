@@ -1,57 +1,117 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Streaming Data Viewer</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        #data-container {
-            border: 1px solid #ccc;
-            padding: 10px;
-            height: 400px;
-            overflow-y: scroll;
-            background-color: #f9f9f9;
-        }
-        .data-item {
-            margin: 5px 0;
-            padding: 5px;
-            border-bottom: 1px solid #ddd;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Streaming Data Viewer</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #controls {
+      margin-bottom: 10px;
+    }
+    #data-container {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+    }
+    .data-item {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+      word-break: break-all;
+    }
+    input[type="text"] {
+      padding: 5px;
+      font-size: 1rem;
+      width: 200px;
+      margin-right: 5px;
+    }
+    button {
+      padding: 5px 10px;
+      font-size: 1rem;
+    }
+  </style>
 </head>
 <body>
-    <h1>Streaming Data Viewer</h1>
-    <div id="data-container"></div>
+  <h1>Streaming Data Viewer</h1>
 
-    <script>
-        const dataContainer = document.getElementById('data-container');
-        const socket = new WebSocket('ws://localhost:8765/ws/LMN');
+  <div id="controls">
+    <input
+      type="text"
+      id="topic-input"
+      placeholder="Enter topic (e.g. ABC)"
+    />
+    <button id="connect-btn">Connect</button>
+    <span id="status" style="margin-left:10px; font-style:italic;"></span>
+  </div>
 
-        socket.onmessage = (event) => {
-            const dataItem = document.createElement('div');
-            dataItem.className = 'data-item';
-            dataItem.textContent = event.data;
-            dataContainer.appendChild(dataItem);
+  <div id="data-container"></div>
 
-            // Auto-scroll to the bottom
-            dataContainer.scrollTop = dataContainer.scrollHeight;
-        };
+  <script>
+    const topicInput = document.getElementById('topic-input');
+    const connectBtn  = document.getElementById('connect-btn');
+    const statusSpan  = document.getElementById('status');
+    const dataContainer = document.getElementById('data-container');
 
-        socket.onopen = () => {
-            console.log('WebSocket connection established.');
-        };
+    let socket = null;
 
-        socket.onerror = (error) => {
-            console.error('WebSocket error:', error);
-        };
+    function setStatus(msg) {
+      statusSpan.textContent = msg;
+    }
 
-        socket.onclose = () => {
-            console.log('WebSocket connection closed.');
-        };
-    </script>
+    function clearData() {
+      dataContainer.innerHTML = '';
+    }
+
+    function appendData(text) {
+      const item = document.createElement('div');
+      item.className = 'data-item';
+      item.textContent = text;
+      dataContainer.appendChild(item);
+      dataContainer.scrollTop = dataContainer.scrollHeight;
+    }
+
+    connectBtn.addEventListener('click', () => {
+      const topic = topicInput.value.trim();
+      if (!topic) {
+        alert('Please enter a topic');
+        return;
+      }
+
+      // Close existing socket if any
+      if (socket) {
+        socket.close();
+      }
+
+      clearData();
+      setStatus(`Connecting to ws://localhost:8765/ws/${topic} ...`);
+
+      socket = new WebSocket(`ws://localhost:8765/ws/${encodeURIComponent(topic)}`);
+
+      socket.onopen = () => {
+        setStatus(`Connected to topic "${topic}"`);
+        console.log('WebSocket open');
+      };
+
+      socket.onmessage = (event) => {
+        appendData(event.data);
+      };
+
+      socket.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        setStatus('Error occurred');
+      };
+
+      socket.onclose = (ev) => {
+        setStatus(`Disconnected`);
+        console.log('WebSocket closed', ev);
+      };
+    });
+  </script>
 </body>
 </html>
