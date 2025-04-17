@@ -4,20 +4,18 @@ import pyarrow as pa
 import pyarrow.flight as flight
 import multiprocessing.shared_memory
 from datetime import datetime
-from clientUtils import subscribe, unsubscribe
+from clientUtils import subscribe_test, unsubscribe
 from FlightServer import FlightServer
 from multiprocessing import Event
-from simple_reader import simple_reader_process
-from SharedMemoryResources import SharedMemoryResources
 from webSocketServer import start_websocket_server
+from SharedMemoryResources import SharedMemoryResources
+
 BUFFER_SIZE = 1000  # Max number of messages
 HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
-DATA_SECTION_SIZE = 2048 * 8  # 100MB for data section
-
-
+DATA_SECTION_SIZE = 1024*1024*100   # 100MB for data section
 
 def startFlightServer(shared_memory_name, lock, write_index, read_index, data_section_start, 
-                     write_data_idx, read_data_idx, event, event2):
+                     write_data_idx, read_data_idx, event, event2, header_size, buffer_size):
     server = FlightServer(
         shared_memory_name, 
         lock, 
@@ -28,21 +26,14 @@ def startFlightServer(shared_memory_name, lock, write_index, read_index, data_se
         read_data_idx,
         location='grpc://127.0.0.1:8816',
         event=event,
-        event2=event2
+        event2=event2,
+        header_size=header_size,
+        buffer_size=buffer_size
     )
     print(f"[{datetime.now().isoformat()}] [Main] FLIGHT SERVER STARTING | Port 8816")
     server.serve()
 
-
-
-
-
-
 if __name__ == "__main__":
-
-
-
-
     # Calculate shared memory layout
     headers_size = BUFFER_SIZE * HEADER_SIZE
     total_memory_size = headers_size + DATA_SECTION_SIZE
@@ -63,43 +54,36 @@ if __name__ == "__main__":
     print(f"[{datetime.now().isoformat()}] [Main] INIT | Starting system...")
     print(f"[{datetime.now().isoformat()}] [Main] MEMORY | Headers: {headers_size/1024:.1f}KB, Data: {DATA_SECTION_SIZE/1024/1024:.1f}MB")
     
-
-
-
-
-
-    
     # Start FlightServer
     server_process = multiprocessing.Process(
         target=startFlightServer, 
-        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2),
+        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2,HEADER_SIZE,BUFFER_SIZE),
         daemon=True
     )
     server_process.start()
     sleep(2)
 
-    websocket_server = multiprocessing.Process(
+    websocket_process = multiprocessing.Process(
         target=start_websocket_server,
-        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2),
+        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2,HEADER_SIZE,BUFFER_SIZE),
         daemon=True
     )
-
-    websocket_server.start()
-    print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER STARTED | PID: {websocket_server.pid}")
+    websocket_process.start()
+    print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER STARTED | PID: {websocket_process.pid}")
 
     # Initiate data transfer
     print(f"[{datetime.now().isoformat()}] [Main] SUBSCRIBING | Connecting to {RemoteAddress}")
-    subscribe("ABC",RemoteAddress, FlightServerAddress)
-    subscribe("LMN",RemoteAddress, FlightServerAddress)
-    subscribe("XYZ",RemoteAddress, FlightServerAddress)
+    subscribe_test("ABC",RemoteAddress, FlightServerAddress)
+    subscribe_test("LMN",RemoteAddress, FlightServerAddress)
+    subscribe_test("XYZ",RemoteAddress, FlightServerAddress)
     try:
         print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Monitoring data flow")
-        server_process.join()
-        websocket_server.join()
+        while True:
+            sleep(1)
     except KeyboardInterrupt:
         print(f"\n[{datetime.now().isoformat()}] [Main] SHUTDOWN STARTED | Stopping data flow")
         server_process.terminate()
-        websocket_server.terminate()
+        websocket_process.terminate()
         shm.close()
         shm.unlink()
         print(f"[{datetime.now().isoformat()}] [Main] SHUTDOWN COMPLETE | Resources released")
