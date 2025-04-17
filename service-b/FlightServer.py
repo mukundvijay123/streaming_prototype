@@ -7,7 +7,7 @@ from SharedMemoryResources import SharedMemoryResources
 #[HEADER1, HEADER2, ... 10000, DATA1, DATA2, ...]
 # R, W                           R_D_I, W_D_I
 #[SIZE -> 8 BYTES]
-#[OFFSET -> 8 BYTES] 
+#[OFFSET -> 8 BYTES]  
 class FlightServer(flight.FlightServerBase):
     def __init__(self, shared_memory_name, lock, write_index, read_index, data_section_start, 
                 write_data_idx, read_data_idx, location, event, event2,header_size,buffer_size):
