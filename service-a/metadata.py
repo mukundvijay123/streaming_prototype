@@ -44,16 +44,18 @@ class systemMetadata:
         print(topic,grpc_address)
         with self.topic_read_lock:
             if topic not in self.topics:
-                return
+                return False
         with self.consumer_write_lock:
             self.consumers[topic].add(grpc_address)
+            return True
 
     def removeConsumer(self, topic, grpc_address):
         with self.topic_read_lock:
             if topic not in self.topics:
-                return
+                return False
         with self.consumer_write_lock:
             self.consumers[topic].discard(grpc_address)
+            return True
 
     def getSubscribers(self,topic):
         with self.consumer_read_lock:

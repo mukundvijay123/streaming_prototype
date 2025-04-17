@@ -94,8 +94,8 @@ if __name__ == "__main__":
     subscribe("XYZ",RemoteAddress, FlightServerAddress)
     try:
         print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Monitoring data flow")
-        while True:
-            sleep(1)
+        server_process.join()
+        websocket_server.join()
     except KeyboardInterrupt:
         print(f"\n[{datetime.now().isoformat()}] [Main] SHUTDOWN STARTED | Stopping data flow")
         server_process.terminate()
