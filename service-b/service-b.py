@@ -9,7 +9,7 @@ from FlightServer import FlightServer
 from multiprocessing import Event
 from simple_reader import simple_reader_process
 from SharedMemoryResources import SharedMemoryResources
-
+from webSocketServer import start_websocket_server
 BUFFER_SIZE = 1000  # Max number of messages
 HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
 DATA_SECTION_SIZE = 2048 * 8  # 100MB for data section
@@ -33,7 +33,16 @@ def startFlightServer(shared_memory_name, lock, write_index, read_index, data_se
     print(f"[{datetime.now().isoformat()}] [Main] FLIGHT SERVER STARTING | Port 8816")
     server.serve()
 
+
+
+
+
+
 if __name__ == "__main__":
+
+
+
+
     # Calculate shared memory layout
     headers_size = BUFFER_SIZE * HEADER_SIZE
     total_memory_size = headers_size + DATA_SECTION_SIZE
@@ -54,6 +63,12 @@ if __name__ == "__main__":
     print(f"[{datetime.now().isoformat()}] [Main] INIT | Starting system...")
     print(f"[{datetime.now().isoformat()}] [Main] MEMORY | Headers: {headers_size/1024:.1f}KB, Data: {DATA_SECTION_SIZE/1024/1024:.1f}MB")
     
+
+
+
+
+
+    
     # Start FlightServer
     server_process = multiprocessing.Process(
         target=startFlightServer, 
@@ -63,13 +78,14 @@ if __name__ == "__main__":
     server_process.start()
     sleep(2)
 
-    reader = multiprocessing.Process(
-        target=simple_reader_process,
+    websocket_server = multiprocessing.Process(
+        target=start_websocket_server,
         args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2),
         daemon=True
     )
-    reader.start()
-    print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER STARTED | PID: {reader.pid}")
+
+    websocket_server.start()
+    print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER STARTED | PID: {websocket_server.pid}")
 
     # Initiate data transfer
     print(f"[{datetime.now().isoformat()}] [Main] SUBSCRIBING | Connecting to {RemoteAddress}")
@@ -78,12 +94,12 @@ if __name__ == "__main__":
     subscribe("XYZ",RemoteAddress, FlightServerAddress)
     try:
         print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Monitoring data flow")
-        while True:
-            sleep(1)
+        server_process.join()
+        websocket_server.join()
     except KeyboardInterrupt:
         print(f"\n[{datetime.now().isoformat()}] [Main] SHUTDOWN STARTED | Stopping data flow")
         server_process.terminate()
-        reader.terminate()
+        websocket_server.terminate()
         shm.close()
         shm.unlink()
         print(f"[{datetime.now().isoformat()}] [Main] SHUTDOWN COMPLETE | Resources released")
