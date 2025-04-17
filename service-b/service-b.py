@@ -4,7 +4,7 @@ import pyarrow as pa
 import pyarrow.flight as flight
 import multiprocessing.shared_memory
 from datetime import datetime
-from clientUtils import subscribe_test, unsubscribe
+from clientUtils import subscribe, unsubscribe
 from FlightServer import FlightServer
 from multiprocessing import Event
 from webSocketServer import start_websocket_server
@@ -73,9 +73,9 @@ if __name__ == "__main__":
 
     # Initiate data transfer
     print(f"[{datetime.now().isoformat()}] [Main] SUBSCRIBING | Connecting to {RemoteAddress}")
-    subscribe_test("ABC",RemoteAddress, FlightServerAddress)
-    subscribe_test("LMN",RemoteAddress, FlightServerAddress)
-    subscribe_test("XYZ",RemoteAddress, FlightServerAddress)
+    subscribe("ABC",RemoteAddress, FlightServerAddress)
+    subscribe("LMN",RemoteAddress, FlightServerAddress)
+    subscribe("XYZ",RemoteAddress, FlightServerAddress)
     try:
         print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Monitoring data flow")
         while True:
