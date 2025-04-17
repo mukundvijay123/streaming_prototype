@@ -101,14 +101,14 @@ async def startup_event():
 
 def start_websocket_server(shared_memory_name, lock, write_index, read_index,
                            data_section_start, write_data_idx, read_data_idx,
-                           event, event2, host="0.0.0.0", port=8765):
+                           event, event2,header_size,buffer_size, host="0.0.0.0", port=8765):
 
     global shm
     shm_raw = multiprocessing.shared_memory.SharedMemory(name=shared_memory_name)
     shm = SharedMemoryResources(
         shm_raw, lock, write_index, read_index,
         data_section_start, write_data_idx, read_data_idx,
-        event, event2
+        event, event2,header_size,buffer_size
     )
 
     print(f"[{datetime.now().isoformat()}] [WebSocket] Starting server on {host}:{port}")
