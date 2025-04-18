@@ -34,8 +34,10 @@ def blocking_consumer(shm: SharedMemoryResources, q: queue.Queue):
     and enqueues each non-None pa.Table into a thread-safe queue.
     """
     while True:
+        
         try:
             evt = shm.read()
+            print("hello",type(evt))
         except Exception as e:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] [ConsumerThread] Read error: {e}")
             evt = None

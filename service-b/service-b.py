@@ -7,7 +7,7 @@ from datetime import datetime
 from clientUtils import subscribe, unsubscribe
 from FlightServer import FlightServer
 from multiprocessing import Event
-from websocketserver import start_websocket_server
+from webSocketServer import start_websocket_server
 from SharedMemoryResources import SharedMemoryResources
 
 BUFFER_SIZE = 1000  # Max number of messages

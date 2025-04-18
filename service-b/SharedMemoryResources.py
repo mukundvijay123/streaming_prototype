@@ -91,7 +91,7 @@ class SharedMemoryResources:
                     print(f"[{current_time}] [Consumer] BUFFER STATUS | {buffer_usage}/{self.buffer_size} slots used")
                     
                     # Convert to Python dict for JSON serialization
-                    result = table.to_pydict()
+                    result = table
                     
                     # Signal that space is available for writers
                     self.space_available_event.set()
