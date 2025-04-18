@@ -7,11 +7,11 @@ from datetime import datetime
 from clientUtils import subscribe, unsubscribe
 from FlightServer import FlightServer
 from multiprocessing import Event
-from webSocketServer import start_websocket_server
+from websocketserver import start_websocket_server
 from SharedMemoryResources import SharedMemoryResources
 
 BUFFER_SIZE = 1000  # Max number of messages
-HEADER_SIZE = 16  # 8 bytes for size, 8 bytes for offset
+HEADER_SIZE = 20  # 8 bytes for size, 8 bytes for offset
 DATA_SECTION_SIZE = 1024*1024*100   # 100MB for data section
 
 def startFlightServer(shared_memory_name, lock, write_index, read_index, data_section_start, 
