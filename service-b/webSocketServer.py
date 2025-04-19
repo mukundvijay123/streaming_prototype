@@ -11,6 +11,7 @@ from datetime import datetime
 import pyarrow as pa
 import json
 import uvicorn
+from clientUtils import subscribe, unsubscribe
 
 app = FastAPI()
 
@@ -74,19 +75,28 @@ async def broadcast_queue(q: queue.Queue):
 @app.websocket("/ws/{topic}")
 async def websocket_handler(websocket: WebSocket, topic: str):
     await websocket.accept()
-    system_metadata.addTopic(topic)
+    if not system_metadata.hasTopic(topic):
+        # Dynamically add the topic and subscribe to it from Service A
+        print(f"[{datetime.now().isoformat()}] [WebSocket] Topic '{topic}' not found. Subscribing...")
+        system_metadata.addTopic(topic)
+        subscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
+        print(f"[{datetime.now().isoformat()}] [WebSocket] Subscribed to topic '{topic}'")
+
     system_metadata.addConsumer(topic, websocket)
     print(f"[{datetime.now().isoformat()}] [WebSocket] Client connected on topic '{topic}'")
     try:
         # Keep this handler alive until disconnect:
         while True:
-            # We don't actually care about client messages,
-            # but awaiting receive_text() lets us catch a disconnect.
             await websocket.receive_text()
     except WebSocketDisconnect:
         print(f"[{datetime.now().isoformat()}] [WebSocket] Client disconnected")
     finally:
         system_metadata.removeConsumer(topic, websocket)
+        if system_metadata.getSubscriberCount(topic) == 0:
+            # Unsubscribe from Service A if no clients are subscribed
+            print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
+            unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
+            system_metadata.removeTopic(topic)
 
 @app.on_event("startup")
 async def startup_event():

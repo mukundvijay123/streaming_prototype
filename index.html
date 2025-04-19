@@ -35,6 +35,18 @@
       padding: 5px 10px;
       font-size: 1rem;
     }
+    button.disconnect-btn {
+      margin-left: 5px;
+      padding: 5px 10px;
+      font-size: 1rem;
+      background-color: #f44336;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button.disconnect-btn:hover {
+      background-color: #d32f2f;
+    }
   </style>
 </head>
 <body>
@@ -47,6 +59,7 @@
       placeholder="Enter topic (e.g. ABC)"
     />
     <button id="connect-btn">Connect</button>
+    <button id="disconnect-btn" class="disconnect-btn">Disconnect</button>
     <span id="status" style="margin-left:10px; font-style:italic;"></span>
   </div>
 
@@ -55,6 +68,7 @@
   <script>
     const topicInput = document.getElementById('topic-input');
     const connectBtn  = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
     const statusSpan  = document.getElementById('status');
     const dataContainer = document.getElementById('data-container');
 
@@ -111,6 +125,16 @@
         setStatus(`Disconnected`);
         console.log('WebSocket closed', ev);
       };
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (socket) {
+        socket.close();
+        setStatus('Disconnected');
+        console.log('WebSocket manually closed');
+      } else {
+        alert('No active connection to disconnect.');
+      }
     });
   </script>
 </body>
