@@ -72,31 +72,52 @@ async def broadcast_queue(q: queue.Queue):
                 print(f"[{datetime.now().strftime('%H:%M:%S')}] [Broadcast] Send error: {e}")
                 system_metadata.removeConsumer(topic, ws)
 
-@app.websocket("/ws/{topic}")
-async def websocket_handler(websocket: WebSocket, topic: str):
+@app.websocket("/ws")
+async def websocket_handler(websocket: WebSocket):
     await websocket.accept()
-    if not system_metadata.hasTopic(topic):
-        # Dynamically add the topic and subscribe to it from Service A
-        print(f"[{datetime.now().isoformat()}] [WebSocket] Topic '{topic}' not found. Subscribing...")
-        system_metadata.addTopic(topic)
-        subscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
-        print(f"[{datetime.now().isoformat()}] [WebSocket] Subscribed to topic '{topic}'")
+    subscribed_topics = set()
 
-    system_metadata.addConsumer(topic, websocket)
-    print(f"[{datetime.now().isoformat()}] [WebSocket] Client connected on topic '{topic}'")
     try:
-        # Keep this handler alive until disconnect:
         while True:
-            await websocket.receive_text()
+            # Receive subscription requests from the client
+            message = await websocket.receive_json()
+            action = message.get("action")
+            topic = message.get("topic")
+
+            if action == "subscribe" and topic:
+                if not system_metadata.hasTopic(topic):
+                    # Dynamically add the topic and subscribe to it from Service A
+                    print(f"[{datetime.now().isoformat()}] [WebSocket] Topic '{topic}' not found. Subscribing...")
+                    system_metadata.addTopic(topic)
+                    subscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
+                    print(f"[{datetime.now().isoformat()}] [WebSocket] Subscribed to topic '{topic}'")
+
+                system_metadata.addConsumer(topic, websocket)
+                subscribed_topics.add(topic)
+                print(f"[{datetime.now().isoformat()}] [WebSocket] Client subscribed to topic '{topic}'")
+
+            elif action == "unsubscribe" and topic:
+                if topic in subscribed_topics:
+                    system_metadata.removeConsumer(topic, websocket)
+                    subscribed_topics.remove(topic)
+                    print(f"[{datetime.now().isoformat()}] [WebSocket] Client unsubscribed from topic '{topic}'")
+
+                    # Unsubscribe from Service A if no clients are subscribed
+                    if system_metadata.getSubscriberCount(topic) == 0:
+                        print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
+                        unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
+                        system_metadata.removeTopic(topic)
+
     except WebSocketDisconnect:
         print(f"[{datetime.now().isoformat()}] [WebSocket] Client disconnected")
     finally:
-        system_metadata.removeConsumer(topic, websocket)
-        if system_metadata.getSubscriberCount(topic) == 0:
-            # Unsubscribe from Service A if no clients are subscribed
-            print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
-            unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
-            system_metadata.removeTopic(topic)
+        # Clean up all subscriptions for this WebSocket
+        for topic in subscribed_topics:
+            system_metadata.removeConsumer(topic, websocket)
+            if system_metadata.getSubscriberCount(topic) == 0:
+                print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
+                unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
+                system_metadata.removeTopic(topic)
 
 @app.on_event("startup")
 async def startup_event():

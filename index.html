@@ -9,6 +9,19 @@
       font-family: Arial, sans-serif;
       margin: 20px;
     }
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #header h1 {
+      margin: 0;
+    }
+    #connection-controls {
+      display: flex;
+      gap: 10px;
+    }
     #controls {
       margin-bottom: 10px;
     }
@@ -36,9 +49,6 @@
       font-size: 1rem;
     }
     button.disconnect-btn {
-      margin-left: 5px;
-      padding: 5px 10px;
-      font-size: 1rem;
       background-color: #f44336;
       color: white;
       border: none;
@@ -47,10 +57,29 @@
     button.disconnect-btn:hover {
       background-color: #d32f2f;
     }
+    #subscribed-topics {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #f1f1f1;
+    }
+    #subscribed-topics ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    #subscribed-topics li {
+      margin: 5px 0;
+    }
   </style>
 </head>
 <body>
-  <h1>Streaming Data Viewer</h1>
+  <div id="header">
+    <h1>Streaming Data Viewer</h1>
+    <div id="connection-controls">
+      <button id="connect-btn">Connect WebSocket</button>
+      <button id="disconnect-btn" class="disconnect-btn">Disconnect WebSocket</button>
+    </div>
+  </div>
 
   <div id="controls">
     <input
@@ -58,21 +87,30 @@
       id="topic-input"
       placeholder="Enter topic (e.g. ABC)"
     />
-    <button id="connect-btn">Connect</button>
-    <button id="disconnect-btn" class="disconnect-btn">Disconnect</button>
+    <button id="subscribe-btn">Subscribe</button>
+    <button id="unsubscribe-btn">Unsubscribe</button>
     <span id="status" style="margin-left:10px; font-style:italic;"></span>
   </div>
 
   <div id="data-container"></div>
 
+  <div id="subscribed-topics">
+    <h3>Subscribed Topics</h3>
+    <ul id="topics-list"></ul>
+  </div>
+
   <script>
-    const topicInput = document.getElementById('topic-input');
-    const connectBtn  = document.getElementById('connect-btn');
-    const disconnectBtn = document.getElementById('disconnect-btn');
-    const statusSpan  = document.getElementById('status');
+    const statusSpan = document.getElementById('status');
     const dataContainer = document.getElementById('data-container');
+    const topicInput = document.getElementById('topic-input');
+    const subscribeBtn = document.getElementById('subscribe-btn');
+    const unsubscribeBtn = document.getElementById('unsubscribe-btn');
+    const connectBtn = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const topicsList = document.getElementById('topics-list');
 
     let socket = null;
+    let subscribedTopics = new Set();
 
     function setStatus(msg) {
       statusSpan.textContent = msg;
@@ -90,25 +128,28 @@
       dataContainer.scrollTop = dataContainer.scrollHeight;
     }
 
+    function updateSubscribedTopics() {
+      topicsList.innerHTML = '';
+      subscribedTopics.forEach((topic) => {
+        const li = document.createElement('li');
+        li.textContent = topic;
+        topicsList.appendChild(li);
+      });
+    }
+
     connectBtn.addEventListener('click', () => {
-      const topic = topicInput.value.trim();
-      if (!topic) {
-        alert('Please enter a topic');
+      if (socket) {
+        alert('WebSocket is already connected.');
         return;
       }
 
-      // Close existing socket if any
-      if (socket) {
-        socket.close();
-      }
-
       clearData();
-      setStatus(`Connecting to ws://localhost:8765/ws/${topic} ...`);
+      setStatus('Connecting to WebSocket server...');
 
-      socket = new WebSocket(`ws://localhost:8765/ws/${encodeURIComponent(topic)}`);
+      socket = new WebSocket('ws://localhost:8765/ws');
 
       socket.onopen = () => {
-        setStatus(`Connected to topic "${topic}"`);
+        setStatus('WebSocket Connected');
         console.log('WebSocket open');
       };
 
@@ -122,18 +163,55 @@
       };
 
       socket.onclose = (ev) => {
-        setStatus(`Disconnected`);
+        setStatus('WebSocket Disconnected');
         console.log('WebSocket closed', ev);
+        socket = null;
+        subscribedTopics.clear();
+        updateSubscribedTopics();
       };
     });
 
     disconnectBtn.addEventListener('click', () => {
       if (socket) {
         socket.close();
-        setStatus('Disconnected');
+        setStatus('WebSocket Disconnected');
         console.log('WebSocket manually closed');
       } else {
-        alert('No active connection to disconnect.');
+        alert('No active WebSocket connection to disconnect.');
+      }
+    });
+
+    subscribeBtn.addEventListener('click', () => {
+      const topic = topicInput.value.trim();
+      if (!topic) {
+        alert('Please enter a topic to subscribe');
+        return;
+      }
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ action: 'subscribe', topic }));
+        subscribedTopics.add(topic);
+        updateSubscribedTopics();
+        console.log(`Subscribed to topic: ${topic}`);
+      } else {
+        alert('WebSocket is not connected.');
+      }
+    });
+
+    unsubscribeBtn.addEventListener('click', () => {
+      const topic = topicInput.value.trim();
+      if (!topic) {
+        alert('Please enter a topic to unsubscribe');
+        return;
+      }
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ action: 'unsubscribe', topic }));
+        subscribedTopics.delete(topic);
+        updateSubscribedTopics();
+        console.log(`Unsubscribed from topic: ${topic}`);
+      } else {
+        alert('WebSocket is not connected.');
       }
     });
   </script>
