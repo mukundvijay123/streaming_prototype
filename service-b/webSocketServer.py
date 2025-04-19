@@ -97,20 +97,25 @@ async def websocket_handler(websocket: WebSocket):
                 print(f"[{datetime.now().isoformat()}] [WebSocket] Client subscribed to topic '{topic}'")
 
             elif action == "unsubscribe" and topic:
-                if topic in subscribed_topics:
-                    system_metadata.removeConsumer(topic, websocket)
-                    subscribed_topics.remove(topic)
-                    print(f"[{datetime.now().isoformat()}] [WebSocket] Client unsubscribed from topic '{topic}'")
+                try:
+                    if topic in subscribed_topics:
+                        system_metadata.removeConsumer(topic, websocket)
+                        subscribed_topics.remove(topic)
+                        print(f"[{datetime.now().isoformat()}] [WebSocket] Client unsubscribed from topic '{topic}'")
 
-                    # Unsubscribe from Service A if no clients are subscribed
-                    if system_metadata.getSubscriberCount(topic) == 0:
-                        print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
-                        unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
-                        system_metadata.removeTopic(topic)
+                        # Unsubscribe from Service A if no clients are subscribed
+                        if system_metadata.getSubscriberCount(topic) == 0:
+                            print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
+                            unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
+                            system_metadata.removeTopic(topic)
+                except Exception as e:
+                    print(f"[{datetime.now().isoformat()}] [WebSocket] Error during unsubscribe: {e}")
+
+            else:
+                print(f"[{datetime.now().isoformat()}] [WebSocket] Unknown action: {action}")
 
     except WebSocketDisconnect:
         print(f"[{datetime.now().isoformat()}] [WebSocket] Client disconnected")
-    finally:
         # Clean up all subscriptions for this WebSocket
         for topic in subscribed_topics:
             system_metadata.removeConsumer(topic, websocket)
@@ -118,6 +123,9 @@ async def websocket_handler(websocket: WebSocket):
                 print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
                 unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
                 system_metadata.removeTopic(topic)
+
+    except Exception as e:
+        print(f"[{datetime.now().isoformat()}] [WebSocket] Error: {e}")
 
 @app.on_event("startup")
 async def startup_event():
