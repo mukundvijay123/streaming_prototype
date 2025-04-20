@@ -3,7 +3,7 @@ from datetime import datetime,timedelta
 from time import sleep
 from queueMap import QueueMap
 def setup():
-    DB_URI = "postgresql://postgres:123456789@localhost:5432/arrow_kafka"
+    DB_URI = "postgresql://postgres:12345@localhost:5432/arrow_table"
     conn=adbc.connect(uri=DB_URI)
     return conn
 
