@@ -56,6 +56,11 @@ class systemMetadata:
             # Return an empty list if the topic isn't registered.
             return list(self.consumers.get(topic, []))
 
+    def getSubscriberCount(self, topic):
+        # Returns the number of subscribers for a given topic which is called in websocketserver.py
+        with self.consumer_read_lock:
+            return len(self.consumers.get(topic, []))
+
     def __str__(self):
         with self.topic_read_lock, self.consumer_read_lock:
             return (
