@@ -65,17 +65,12 @@ if __name__ == "__main__":
 
     websocket_process = multiprocessing.Process(
         target=start_websocket_server,
-        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2,HEADER_SIZE,BUFFER_SIZE),
+        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2, HEADER_SIZE, BUFFER_SIZE, "0.0.0.0", 8765),
         daemon=True
     )
     websocket_process.start()
     print(f"[{datetime.now().isoformat()}] [Main] WEBSOCKET SERVER STARTED | PID: {websocket_process.pid}")
 
-    # Initiate data transfer
-    print(f"[{datetime.now().isoformat()}] [Main] SUBSCRIBING | Connecting to {RemoteAddress}")
-    subscribe("ABC",RemoteAddress, FlightServerAddress)
-    subscribe("LMN",RemoteAddress, FlightServerAddress)
-    subscribe("XYZ",RemoteAddress, FlightServerAddress)
     try:
         print(f"[{datetime.now().isoformat()}] [Main] RUNNING | Monitoring data flow")
         while True:
