@@ -3,7 +3,7 @@ from datetime import datetime,timedelta
 from time import sleep
 from queueMap import QueueMap
 def setup():
-    DB_URI = "postgresql://postgres:12345@localhost:5432/arrow_table"
+    DB_URI = "postgresql://postgres:123456789@localhost:5432/arrow_kafka"
     conn=adbc.connect(uri=DB_URI)
     return conn
 
@@ -23,7 +23,7 @@ def queryDB(conn,queue_map:QueueMap):
             #print(event)
             success=queue_map.putEvent(topic,event)
             time += timedelta(seconds=1)
-            sleep(1)
+        sleep(1)
 
 
 def streamSimulator(queue_map:QueueMap):
