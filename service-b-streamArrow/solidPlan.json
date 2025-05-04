@@ -1,0 +1,238 @@
+{
+    "extension_uris": [{
+      "extension_uri_anchor": 1,
+      "uri": "/functions_comparison.yaml"
+    }],
+    "extensions": [{
+      "extension_function": {
+        "extension_uri_reference": 1,
+        "function_anchor": 0,
+        "name": "gt:any_any"
+      }
+    }],
+    "relations": [{
+      "root": {
+        "input": {
+          "project": {
+            "common": {
+              "emit": {
+                "output_mapping": [8, 9, 10, 11, 12, 13, 14, 15]
+              }
+            },
+            "input": {
+              "filter": {
+                "common": {
+                  "direct": {
+                  }
+                },
+                "input": {
+                  "read": {
+                    "common": {
+                      "direct": {
+                      }
+                    },
+                    "base_schema": {
+                      "names": ["ID", "timestamp", "STOCK_SYMBOL", "PRICE", "VOLUME", "BID_PRICE", "ASK_PRICE", "SPREAD"],
+                      "struct": {
+                        "types": [{
+                          "i32": {
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_NULLABLE"
+                          }
+                        }, {
+                          "precision_timestamp": {
+                            "precision": 0,
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }, {
+                          "varchar": {
+                            "length": 10,
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }, {
+                          "decimal": {
+                            "scale": 2,
+                            "precision": 10,
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }, {
+                          "i32": {
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }, {
+                          "decimal": {
+                            "scale": 2,
+                            "precision": 10,
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }, {
+                          "decimal": {
+                            "scale": 2,
+                            "precision": 10,
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }, {
+                          "decimal": {
+                            "scale": 2,
+                            "precision": 10,
+                            "type_variation_reference": 0,
+                            "nullability": "NULLABILITY_REQUIRED"
+                          }
+                        }],
+                        "type_variation_reference": 0,
+                        "nullability": "NULLABILITY_REQUIRED"
+                      }
+                    },
+                    "named_table": {
+                      "names": ["XYZ"]
+                    }
+                  }
+                },
+                "condition": {
+                  "scalar_function": {
+                    "function_reference": 0,
+                    "args": [],
+                    "output_type": {
+                      "bool": {
+                        "type_variation_reference": 0,
+                        "nullability": "NULLABILITY_REQUIRED"
+                      }
+                    },
+                    "arguments": [{
+                      "value": {
+                        "cast": {
+                          "type": {
+                            "decimal": {
+                              "scale": 2,
+                              "precision": 12,
+                              "type_variation_reference": 0,
+                              "nullability": "NULLABILITY_REQUIRED"
+                            }
+                          },
+                          "input": {
+                            "selection": {
+                              "direct_reference": {
+                                "struct_field": {
+                                  "field": 3
+                                }
+                              },
+                              "root_reference": {
+                              }
+                            }
+                          },
+                          "failure_behavior": "FAILURE_BEHAVIOR_THROW_EXCEPTION"
+                        }
+                      }
+                    }, {
+                      "value": {
+                        "literal": {
+                          "decimal": {
+                            "value": "mDoAAAAAAAAAAAAAAAAAAA==",
+                            "precision": 12,
+                            "scale": 2
+                          },
+                          "nullable": false,
+                          "type_variation_reference": 0
+                        }
+                      }
+                    }],
+                    "options": []
+                  }
+                }
+              }
+            },
+            "expressions": [{
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 0
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }, {
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 1
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }, {
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 2
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }, {
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 3
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }, {
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 4
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }, {
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 5
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }, {
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 6
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }, {
+              "selection": {
+                "direct_reference": {
+                  "struct_field": {
+                    "field": 7
+                  }
+                },
+                "root_reference": {
+                }
+              }
+            }]
+          }
+        },
+        "names": ["ID", "timestamp", "STOCK_SYMBOL", "PRICE", "VOLUME", "BID_PRICE", "ASK_PRICE", "SPREAD"]
+      }
+    }],
+    "expected_type_urls": [],
+    "parameter_bindings": []
+  }
