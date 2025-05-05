@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>  Query Client</title>
+    <style>
+        /* Base styles and reset */
+        * {
+          margin: 0;
+          padding: 0;
+          box-sizing: border-box;
+        }
+
+        :root {
+          --primary-color: #4361ee;
+          --primary-light: #4895ef;
+          --primary-dark: #3a0ca3;
+          --secondary-color: #4cc9f0;
+          --accent-color: #f72585;
+          --success-color: #06d6a0;
+          --error-color: #ef476f;
+          --text-color: #2b2d42;
+          --text-light: #6c757d;
+          --text-lighter: #adb5bd;
+          --background: #f8f9fa;
+          --card-bg: #ffffff;
+          --border-color: #e9ecef;
+          --shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          --shadow-inner: inset 0 2px 4px 0 rgba(0, 0, 0, 0.06);
+          --transition: all 0.3s ease;
+          --radius: 12px;
+          --radius-sm: 8px;
+        }
+
+        body {
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          line-height: 1.6;
+          color: var(--text-color);
+          background-color: var(--background);
+          background-image: linear-gradient(135deg, #f5f7fa 0%, #e4e8f0 100%);
+          min-height: 100vh;
+          padding: 0;
+          margin: 0;
+        }
+
+        .app-container {
+          max-width: 1200px;
+          margin: 0 auto;
+          padding: 2rem;
+          display: flex;
+          flex-direction: column;
+          min-height: 100vh;
+        }
+
+        /* Typography */
+        h1, h2, h3 {
+          font-weight: 700;
+          line-height: 1.2;
+          color: var(--text-color);
+        }
+
+        h1 {
+          font-size: 2.5rem;
+          margin-bottom: 0.5rem;
+          background: linear-gradient(90deg, var(--primary-color), var(--accent-color));
+          -webkit-background-clip: text;
+          background-clip: text;
+          color: transparent;
+          letter-spacing: -0.5px;
+        }
+
+        h2 {
+          font-size: 1.5rem;
+          color: var(--primary-color);
+          margin-bottom: 1rem;
+          position: relative;
+          display: inline-block;
+        }
+
+        h2::after {
+          content: '';
+          position: absolute;
+          bottom: -8px;
+          left: 0;
+          width: 40px;
+          height: 4px;
+          background: linear-gradient(90deg, var(--primary-color), var(--secondary-color));
+          border-radius: 2px;
+        }
+
+        .subtitle {
+          color: var(--text-light);
+          margin-bottom: 2rem;
+          font-size: 1.1rem;
+          font-weight: 500;
+        }
+
+        /* Layout */
+        header {
+          margin-bottom: 2rem;
+          text-align: center;
+          padding: 1rem 0;
+        }
+
+        main {
+          display: flex;
+          flex-direction: column;
+          gap: 2rem;
+          flex: 1;
+        }
+
+        section {
+          background-color: var(--card-bg);
+          border-radius: var(--radius);
+          padding: 1.75rem;
+          box-shadow: var(--shadow);
+          transition: var(--transition);
+          border: 1px solid rgba(255, 255, 255, 0.8);
+        }
+
+        section:hover {
+          box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+          transform: translateY(-2px);
+        }
+
+        .section-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.25rem;
+        }
+
+        footer {
+          margin-top: 3rem;
+          text-align: center;
+          color: var(--text-lighter);
+          padding: 1.5rem 0;
+          font-size: 0.9rem;
+        }
+
+        /* Query Input */
+        .query-section {
+          order: 1;
+        }
+
+        .query-input-container {
+          display: flex;
+          flex-direction: column;
+          gap: 1rem;
+        }
+
+        textarea {
+          width: 100%;
+          min-height: 120px;
+          padding: 1rem;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
+          font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+          font-size: 0.95rem;
+          resize: vertical;
+          transition: var(--transition);
+          background-color: #f8fafc;
+          color: #334155;
+          line-height: 1.5;
+        }
+
+        textarea:focus {
+          outline: none;
+          border-color: var(--primary-light);
+          box-shadow: 0 0 0 3px rgba(67, 97, 238, 0.15);
+          background-color: #fff;
+        }
+
+        /* Buttons */
+        .btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          padding: 0.75rem 1.5rem;
+          border: none;
+          border-radius: var(--radius-sm);
+          font-weight: 600;
+          cursor: pointer;
+          transition: var(--transition);
+          font-size: 1rem;
+          gap: 0.5rem;
+          letter-spacing: 0.3px;
+        }
+
+        .primary-btn {
+          background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+          color: white;
+          box-shadow: 0 4px 6px rgba(67, 97, 238, 0.25);
+        }
+
+        .primary-btn:hover {
+          background: linear-gradient(135deg, var(--primary-dark), var(--primary-color));
+          box-shadow: 0 6px 8px rgba(67, 97, 238, 0.35);
+          transform: translateY(-1px);
+        }
+
+        .connect-btn {
+          background: linear-gradient(135deg, var(--secondary-color), var(--success-color));
+          color: white;
+          box-shadow: 0 4px 6px rgba(76, 201, 240, 0.25);
+        }
+
+        .connect-btn:hover {
+          background: linear-gradient(135deg, var(--success-color), var(--secondary-color));
+          box-shadow: 0 6px 8px rgba(76, 201, 240, 0.35);
+          transform: translateY(-1px);
+        }
+
+        .btn-icon {
+          font-size: 1rem;
+        }
+
+        /* Status Messages */
+        .status {
+          padding: 0.85rem 1.25rem;
+          border-radius: var(--radius-sm);
+          margin-top: 1rem;
+          font-weight: 500;
+          animation: fadeIn 0.3s ease;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .status::before {
+          content: '';
+          display: block;
+          width: 8px;
+          height: 8px;
+          border-radius: 50%;
+        }
+
+        .success {
+          background-color: rgba(6, 214, 160, 0.15);
+          color: var(--success-color);
+          border-left: 4px solid var(--success-color);
+        }
+
+        .success::before {
+          background-color: var(--success-color);
+        }
+
+        .error {
+          background-color: rgba(239, 71, 111, 0.15);
+          color: var(--error-color);
+          border-left: 4px solid var(--error-color);
+        }
+
+        .error::before {
+          background-color: var(--error-color);
+        }
+
+        .hidden {
+          display: none;
+        }
+
+        /* Data Display - Center Stage */
+        .data-section {
+          order: 2;
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .data-display-wrapper {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .data-display {
+          flex: 1;
+          min-height: 300px;
+          max-height: 500px;
+          overflow-y: auto;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
+          background-color: #f8fafc;
+          padding: 0;
+          margin-top: 1rem;
+          box-shadow: var(--shadow-inner);
+          position: relative;
+          scrollbar-width: thin;
+          scrollbar-color: var(--primary-light) #f1f5f9;
+        }
+
+        .data-display::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .data-display::-webkit-scrollbar-track {
+          background: #f1f5f9;
+          border-radius: 10px;
+        }
+
+        .data-display::-webkit-scrollbar-thumb {
+          background-color: var(--primary-light);
+          border-radius: 10px;
+          border: 2px solid #f1f5f9;
+        }
+
+        .data-placeholder {
+          padding: 3rem 2rem;
+          text-align: center;
+          color: var(--text-lighter);
+          font-style: italic;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+        }
+
+        .data-placeholder::before {
+          content: '📊';
+          font-size: 3rem;
+          margin-bottom: 1rem;
+        }
+
+        .data-item {
+          padding: 1rem 1.25rem;
+          border-bottom: 1px solid var(--border-color);
+          font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
+          background-color: white;
+          transition: var(--transition);
+          animation: slideIn 0.3s ease;
+          position: relative;
+        }
+
+        .data-item:hover {
+          background-color: #f0f7ff;
+        }
+
+        .data-item:first-child {
+          border-top-left-radius: var(--radius-sm);
+          border-top-right-radius: var(--radius-sm);
+        }
+
+        .data-item:last-child {
+          border-bottom: none;
+          border-bottom-left-radius: var(--radius-sm);
+          border-bottom-right-radius: var(--radius-sm);
+        }
+
+        .data-item::before {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 4px;
+          background: linear-gradient(to bottom, var(--primary-color), var(--secondary-color));
+          opacity: 0;
+          transition: opacity 0.2s ease;
+        }
+
+        .data-item:hover::before {
+          opacity: 1;
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+          from {
+            opacity: 0;
+          }
+          to {
+            opacity: 1;
+          }
+        }
+
+        @keyframes slideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes pulse {
+          0% {
+            box-shadow: 0 0 0 0 rgba(67, 97, 238, 0.4);
+          }
+          70% {
+            box-shadow: 0 0 0 10px rgba(67, 97, 238, 0);
+          }
+          100% {
+            box-shadow: 0 0 0 0 rgba(67, 97, 238, 0);
+          }
+        }
+
+        /* Responsive Design */
+        @media (min-width: 768px) {
+          .app-container {
+            padding: 3rem;
+          }
+        }
+
+        @media (max-width: 767px) {
+          .app-container {
+            padding: 1.5rem;
+          }
+
+          h1 {
+            font-size: 2rem;
+          }
+
+          .section-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 1rem;
+          }
+
+          .section-header button {
+            width: 100%;
+          }
+        }
+
+        /* Card decorations */
+        .card-decoration {
+          position: absolute;
+          width: 80px;
+          height: 80px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, rgba(67, 97, 238, 0.1), rgba(76, 201, 240, 0.1));
+          z-index: -1;
+        }
+
+        .card-decoration-1 {
+          top: -20px;
+          right: -20px;
+        }
+
+        .card-decoration-2 {
+          bottom: -20px;
+          left: -20px;
+        }
+
+        section {
+          position: relative;
+          overflow: hidden;
+        }
+
+        /* New styles for subscription feature */
+        .add-query-btn {
+          position: fixed;
+          bottom: 30px;
+          right: 30px;
+          width: 60px;
+          height: 60px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, var(--accent-color), var(--primary-color));
+          color: white;
+          font-size: 28px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          box-shadow: 0 6px 10px rgba(0, 0, 0, 0.15);
+          transition: all 0.3s ease;
+          z-index: 100;
+        }
+
+        .add-query-btn:hover {
+          transform: scale(1.1);
+          box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .subscription-modal {
+          position: fixed;
+          top: 0;
+          left: 0;
+          right: 0;
+          bottom: 0;
+          background-color: rgba(0, 0, 0, 0.5);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 1000;
+          opacity: 0;
+          visibility: hidden;
+          transition: all 0.3s ease;
+        }
+
+        .subscription-modal.active {
+          opacity: 1;
+          visibility: visible;
+        }
+
+        .subscription-content {
+          background-color: white;
+          border-radius: var(--radius);
+          width: 90%;
+          max-width: 800px;
+          max-height: 80vh;
+          overflow-y: auto;
+          padding: 2rem;
+          box-shadow: var(--shadow);
+          animation: modalSlideIn 0.4s ease;
+          position: relative;
+        }
+
+        @keyframes modalSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(-30px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        .modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 1.5rem;
+          padding-bottom: 1rem;
+          border-bottom: 1px solid var(--border-color);
+        }
+
+        .modal-close {
+          background: none;
+          border: none;
+          font-size: 1.5rem;
+          cursor: pointer;
+          color: var(--text-light);
+          transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+          color: var(--error-color);
+        }
+
+        .query-pairs-container {
+          margin-bottom: 1.5rem;
+          max-height: 50vh;
+          overflow-y: auto;
+        }
+
+        .query-pair {
+          display: flex;
+          gap: 1rem;
+          margin-bottom: 1rem;
+          position: relative;
+          padding: 1rem;
+          background-color: #f8fafc;
+          border-radius: var(--radius-sm);
+          border: 1px solid var(--border-color);
+          animation: fadeIn 0.3s ease;
+        }
+
+        .query-pair-inputs {
+          display: flex;
+          flex: 1;
+          gap: 1rem;
+        }
+
+        .input-group {
+          flex: 1;
+        }
+
+        .input-group label {
+          display: block;
+          margin-bottom: 0.5rem;
+          font-weight: 600;
+          color: var(--primary-dark);
+          font-size: 0.9rem;
+        }
+
+        .input-group input, .input-group textarea {
+          width: 100%;
+          padding: 0.75rem;
+          border: 1px solid var(--border-color);
+          border-radius: var(--radius-sm);
+          font-size: 0.9rem;
+          background-color: white;
+        }
+
+        .remove-pair {
+          background: none;
+          border: none;
+          color: var(--text-lighter);
+          cursor: pointer;
+          transition: color 0.2s;
+          font-size: 1.2rem;
+          align-self: center;
+        }
+
+        .remove-pair:hover {
+          color: var(--error-color);
+        }
+
+        .add-pair-btn {
+          background-color: #f0f7ff;
+          border: 1px dashed var(--primary-light);
+          color: var(--primary-color);
+          padding: 1rem;
+          border-radius: var(--radius-sm);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 0.5rem;
+          cursor: pointer;
+          transition: all 0.2s;
+          font-weight: 600;
+        }
+
+        .add-pair-btn:hover {
+          background-color: #e1edff;
+        }
+
+        .modal-footer {
+          display: flex;
+          justify-content: flex-end;
+          margin-top: 1.5rem;
+          padding-top: 1rem;
+          border-top: 1px solid var(--border-color);
+        }
+
+        .subscribe-btn {
+          background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+          color: white;
+          padding: 0.75rem 1.5rem;
+          border: none;
+          border-radius: var(--radius-sm);
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.3s;
+          display: flex;
+          align-items: center;
+          gap: 0.5rem;
+        }
+
+        .subscribe-btn:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 4px 6px rgba(76, 201, 240, 0.25);
+        }
+
+        .subscribe-btn:active {
+          transform: translateY(0);
+        }
+    </style>
+</head>
+<body>
+<div class="app-container">
+    <header>
+        <h1>SQL Query Client</h1>
+        <p class="subtitle">Execute and monitor SQL queries in real-time</p>
+    </header>
+
+    <main>
+        <!-- Data Display Section - Now in the center/middle -->
+        <section class="data-section">
+            <div class="section-header">
+                <h2>Data Stream</h2>
+                <button id="SUBMIT_BTN" class="btn connect-btn">
+                    <span class="btn-icon">⟳</span>
+                    Connect
+                </button>
+            </div>
+            <div id="SUBMIT" class="status hidden"></div>
+            <div class="data-display-wrapper">
+                <div id="dataDisplay" class="data-display">
+                    <div class="data-placeholder">
+                        Your query results will appear here
+                    </div>
+                </div>
+            </div>
+            <div class="card-decoration card-decoration-1"></div>
+            <div class="card-decoration card-decoration-2"></div>
+        </section>
+
+        <!-- Query Section - Now at the bottom -->
+        <section class="query-section">
+<!--            <h2>Submit Query</h2>-->
+            <div class="query-input-container">
+<!--                <textarea id="queryInput" placeholder="SELECT * FROM users WHERE status = 'active'"></textarea>-->
+                <button id="submitBtn" class="btn primary-btn">
+                    COMPOSABLE DATA ARCHITECTURE
+                </button>
+            </div>
+            <div id="submitStatus" class="status hidden"></div>
+            <div class="card-decoration card-decoration-1"></div>
+            <div class="card-decoration card-decoration-2"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>SQL Query Client • Designed with ❤️ • © 2025</p>
+    </footer>
+
+    <!-- Add Query Button (+ icon) -->
+    <div id="addQueryBtn" class="add-query-btn">+</div>
+
+    <!-- Subscription Modal -->
+    <div id="subscriptionModal" class="subscription-modal">
+        <div class="subscription-content">
+            <div class="modal-header">
+                <h2>Subscribe to Queries</h2>
+                <button id="closeModal" class="modal-close">&times;</button>
+            </div>
+
+            <div id="queryPairsContainer" class="query-pairs-container">
+                <!-- Query pairs will be added here dynamically -->
+                <div class="query-pair">
+                    <div class="query-pair-inputs">
+                        <div class="input-group">
+                            <label for="query-0">SQL QUERY</label>
+                            <textarea id="query-0" placeholder="Enter your SQL query here..."></textarea>
+                        </div>
+                        <div class="input-group">
+                            <label for="topic-0">TOPIC</label>
+                            <input type="text" id="topic-0" placeholder="Topic for this query">
+                        </div>
+                    </div>
+                    <button class="remove-pair">&times;</button>
+                </div>
+            </div>
+
+            <div id="addPairBtn" class="add-pair-btn">
+                <span>+</span> Add Another Query
+            </div>
+
+            <div class="modal-footer">
+                <button id="subscribeBtn" class="subscribe-btn">
+                    <span>🔔</span> Subscribe
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+<script>
+        const flaskServiceUrl = 'http://localhost:8200';
+
+        // Submit query to Flask (which forwards to localhost:8080)
+        document.getElementById('submitBtn').addEventListener('click', async () => {
+            const query = document.getElementById('queryInput').value.trim();
+            const statusEl = document.getElementById('submitStatus');
+
+            if (!query) {
+                showStatus(statusEl, 'Please enter a SQL query', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch(`${flaskServiceUrl}/forward-query`, {
+                    method: 'POST',
+                    body: query,
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    }
+                });
+
+                if (response.ok) {
+                    showStatus(statusEl, 'Query forwarded successfully!', 'success');
+                } else {
+                    const error = await response.text();
+                    showStatus(statusEl, `Error: ${error}`, 'error');
+                }
+            } catch (err) {
+                showStatus(statusEl, `Network error: ${err.message}`, 'error');
+            }
+        });
+
+        document.getElementById('SUBMIT_BTN').addEventListener('click', async () => {
+            const statusEl = document.getElementById('submitStatus');
+
+            try {
+                const response = await fetch(`${flaskServiceUrl}/all-streams`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain'
+                    }
+                });
+
+                if (response.ok) {
+                    showStatus(statusEl, 'CONNECTED SUCCESSFULLY!', 'success');
+                } else {
+                    const error = await response.text();
+                    showStatus(statusEl, `Error: ${error}`, 'error');
+                }
+            } catch (err) {
+                showStatus(statusEl, `Network error: ${err.message}`, 'error');
+            }
+        });
+
+        // Set up Server-Sent Events (SSE) for data stream
+        const dataDisplay = document.getElementById('dataDisplay');
+        const eventSource = new EventSource(`${flaskServiceUrl}/stream-data`);
+
+        eventSource.onmessage = function(e) {
+            const dataPlaceholder = document.querySelector('.data-placeholder');
+            if (dataPlaceholder) {
+                dataPlaceholder.remove();
+            }
+
+            const dataItem = document.createElement('div');
+            dataItem.className = 'data-item';
+            dataItem.textContent = e.data;
+            dataDisplay.prepend(dataItem);  // Add newest at top
+
+            // Auto-scroll to top
+            dataDisplay.scrollTop = 0;
+        };
+
+        eventSource.onerror = function() {
+            console.error("EventSource failed");
+            // Implement reconnection logic if needed
+        };
+
+        function showStatus(element, message, type) {
+            element.textContent = message;
+            element.className = 'status';
+            if (message) {
+                element.classList.remove('hidden');
+                element.classList.add(type);
+            } else {
+                element.classList.add('hidden');
+            }
+        }
+
+        // Subscription Modal Functions
+        // Subscription Modal Functions
+const addQueryBtn = document.getElementById('addQueryBtn');
+const subscriptionModal = document.getElementById('subscriptionModal');
+const closeModal = document.getElementById('closeModal');
+const addPairBtn = document.getElementById('addPairBtn');
+const queryPairsContainer = document.getElementById('queryPairsContainer');
+const subscribeBtn = document.getElementById('subscribeBtn');
+const modalFooter = document.querySelector('.modal-footer'); // Add this line
+
+// Counter for unique IDs
+let pairCounter = 1;
+
+// Open modal when + button is clicked
+addQueryBtn.addEventListener('click', () => {
+    subscriptionModal.classList.add('active');
+});
+
+// Close modal
+closeModal.addEventListener('click', () => {
+    subscriptionModal.classList.remove('active');
+});
+
+// Close modal when clicking outside
+subscriptionModal.addEventListener('click', (e) => {
+    if (e.target === subscriptionModal) {
+        subscriptionModal.classList.remove('active');
+    }
+});
+
+// Add new query pair
+addPairBtn.addEventListener('click', () => {
+    const newPair = document.createElement('div');
+    newPair.className = 'query-pair';
+    newPair.innerHTML = `
+        <div class="query-pair-inputs">
+            <div class="input-group">
+                <label for="query-${pairCounter}">SQL QUERY</label>
+                <textarea id="query-${pairCounter}" placeholder="Enter your SQL query here..."></textarea>
+            </div>
+            <div class="input-group">
+                <label for="topic-${pairCounter}">TOPIC</label>
+                <input type="text" id="topic-${pairCounter}" placeholder="Topic for this query">
+            </div>
+        </div>
+        <button class="remove-pair">&times;</button>
+    `;
+
+    // Append the new pair to the container
+    queryPairsContainer.appendChild(newPair);
+
+    pairCounter++;
+
+    // Add event listener to new remove button
+    const removeBtn = newPair.querySelector('.remove-pair');
+    removeBtn.addEventListener('click', () => {
+        // Only remove if there's more than one pair
+        if (document.querySelectorAll('.query-pair').length > 1) {
+            newPair.remove();
+        } else {
+            alert('You need at least one query-topic pair');
+        }
+    });
+});
+
+
+// Add event listener to initial remove button
+document.querySelector('.remove-pair').addEventListener('click', function() {
+    if (document.querySelectorAll('.query-pair').length > 1) {
+        this.closest('.query-pair').remove();
+    } else {
+        alert('You need at least one query-topic pair');
+    }
+});
+
+// Subscribe button functionality
+subscribeBtn.addEventListener('click', async () => {
+    const queryPairs = Array.from(document.querySelectorAll('.query-pair'));
+    const queries = [];
+
+    // Collect all query-topic pairs
+    for (const pair of queryPairs) {
+        const queryInput = pair.querySelector('textarea');
+        const topicInput = pair.querySelector('input[type="text"]');
+
+        const query = queryInput.value.trim();
+        const topic = topicInput.value.trim();
+
+        if (query && topic) {
+            queries.push([query, topic]);
+        } else if (query || topic) {
+            alert('Please fill both query and topic fields for all pairs');
+            return;
+        }
+    }
+
+    if (queries.length === 0) {
+        alert('Please add at least one valid query-topic pair');
+        return;
+    }
+
+    try {
+        // Show loading state
+        subscribeBtn.disabled = true;
+        subscribeBtn.innerHTML = '<span>⏳</span> Subscribing...';
+
+        // Send the data in the requested format
+        const response = await fetch(`${flaskServiceUrl}/forward-query`, {
+            method: 'POST',
+            body: JSON.stringify(queries),
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+
+        if (response.ok) {
+            alert('Successfully subscribed to queries!');
+            subscriptionModal.classList.remove('active');
+        } else {
+            const error = await response.text();
+            alert(`Error: ${error}`);
+        }
+    } catch (err) {
+        alert(`Network error: ${err.message}`);
+    } finally {
+        // Reset button state
+        subscribeBtn.disabled = false;
+        subscribeBtn.innerHTML = '<span>🔔</span> Subscribe';
+    }
+});
+    </script>
+</body>
+</html>
