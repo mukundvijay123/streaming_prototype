@@ -76,5 +76,6 @@ env/
 
 
 **/*.class
+**/*.probe 
 /build/
 /out/
