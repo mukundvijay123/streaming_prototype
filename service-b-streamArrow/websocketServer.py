@@ -30,11 +30,12 @@ app.add_middleware(
 broker_addr='grpc://127.0.0.1:8815'
 my_addr='grpc://127.0.0.1:8816'
 query_server_address='http://127.0.0.1:8080'
-httpClientSession=aiohttp.ClientSession()
 
 # Global state
 system_metadata = systemQueryMetadata(broker_addr,my_addr)
 shm: SharedMemoryResources = None  
+httpClientSession=None
+
 
 def blocking_consumer(shm: SharedMemoryResources):
     """
@@ -96,7 +97,7 @@ async def websocket_handler(websocket: WebSocket):
                 query_string=message.get("query_string")
                 query_plan =await fetchSubstraitPlan(query_string,query_server_address,httpClientSession)
                 if not query_string :
-                    sessionName=system_metadata.createQuerySession(query_string,websocket,True,query_plan)
+                    sessionName=system_metadata.createQuerySession(query_string,websocket,False,query_plan)
             elif action=="close":
                 system_metadata.deleteQuerySession(sessionName)
                 sessionName=None
@@ -119,7 +120,8 @@ async def websocket_handler(websocket: WebSocket):
 
 @app.on_event("startup")
 async def startup_event():
-    global shm,system_metadata
+    global shm,system_metadata,httpClientSession
+    httpClientSession=aiohttp.ClientSession()
     if shm is not None:
         # Start the blocking consumer thread
         t = threading.Thread(target=blocking_consumer, args=(shm,), daemon=True)
