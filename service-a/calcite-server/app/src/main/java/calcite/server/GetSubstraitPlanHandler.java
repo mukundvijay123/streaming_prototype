@@ -83,5 +83,6 @@ public class GetSubstraitPlanHandler implements HttpHandler {
             Utils.sendJsonResponse(exchange, 400, "{\"error\": \"Invalid request format: " + 
                 e.getMessage().replace("\"", "\\\"") + "\"}");
         }
+        return;
     }
 }

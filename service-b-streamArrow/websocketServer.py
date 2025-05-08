@@ -11,6 +11,8 @@ from datetime import datetime
 import pyarrow as pa
 import json
 import uvicorn
+import aiohttp
+from HttpRequests import fetchSubstraitPlan
 from clientUtils import subscribe, unsubscribe
 
 app = FastAPI()
@@ -27,6 +29,9 @@ app.add_middleware(
 
 broker_addr='grpc://127.0.0.1:8815'
 my_addr='grpc://127.0.0.1:8816'
+query_server_address='http://127.0.0.1:8080'
+httpClientSession=aiohttp.ClientSession()
+
 # Global state
 system_metadata = systemQueryMetadata(broker_addr,my_addr)
 shm: SharedMemoryResources = None  
@@ -62,14 +67,17 @@ async def broadcast_task():
 
         try:
             querySession= evt.schema.metadata[b"queryContext"].decode()
-            payload = str(evt.to_pydict())
+            payload = json.dumps(evt.to_pydict(),default=str)
         except Exception as e:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] [Broadcast] Invalid event: {e}")
             continue
 
         ctx= system_metadata.getQueryCtx(querySession)
         if ctx:
-            asyncio.create_task(ctx.sendEvent(payload))
+            try:
+                await ctx.sendEvent(payload)
+            except:
+                 print(f"[{datetime.now():%H:%M:%S}] [Broadcast] Send failed: {e}")
 
 
 
@@ -85,24 +93,25 @@ async def websocket_handler(websocket: WebSocket):
             
             
             if action=="start_query_session":
-                print("ok")
                 query_string=message.get("query_string")
-                query_plan=message.get("query_plan")
-                print("fine")
-                sessionName=system_metadata.createQuerySession(query_string,websocket,True,query_plan)
-                print(sessionName)
+                query_plan =await fetchSubstraitPlan(query_string,query_server_address,httpClientSession)
+                if not query_string :
+                    sessionName=system_metadata.createQuerySession(query_string,websocket,True,query_plan)
             elif action=="close":
                 system_metadata.deleteQuerySession(sessionName)
+                sessionName=None
 
 
     except WebSocketDisconnect:
         print(f"[{datetime.now().isoformat()}] [WebSocket] Client disconnected")
-        system_metadata.deleteQuerySession(sessionName)
-        # Clean up all subscriptions for this WebSocket
-        
-
     except Exception as e:
         print(f"[{datetime.now().isoformat()}] [WebSocket] Error: {e}")
+    finally:
+        if sessionName:
+            system_metadata.deleteQuerySession(sessionName)
+        
+
+
 
 
 

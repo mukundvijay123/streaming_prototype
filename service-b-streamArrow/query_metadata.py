@@ -13,12 +13,13 @@ import utils
 
 
 class systemQueryMetadata:
-    def __init__(self, brokerAddress: str, myAddress: str):
+    def __init__(self, brokerAddress: str, myAddress: str,QueryPlanServerAddress:str):
         # Maps and shared resources
         self.QueryMap = {}      # sessionName -> queryContext
         self.TopicMap = {}      # topic -> set(queryContext)
         self.brokerAddress = brokerAddress
         self.myAddress = myAddress
+        self.QueryPlanServerAddress=QueryPlanServerAddress
         self.__queryCount = 0
         self.outboundQueue = janus.Queue()
 
@@ -54,18 +55,10 @@ class systemQueryMetadata:
         queryString: str,
         wsConn: WebSocket,
         test: bool = False,
-        queryPlan_test: dict = None
+        queryPlan: dict = None
     ) -> str:
-        # 1) Determine topic & plan (test vs. real)
         
-
-        '''
-        # TODO: fetch real plan & topic from query plan server
-        # plan, topic = fetch_plan_and_topic(queryString)
-        '''
-        
-        
-        plan = queryPlan_test if test else None
+        plan = queryPlan 
         topic = utils.find_topics(plan)[0]
         print(topic)
         
