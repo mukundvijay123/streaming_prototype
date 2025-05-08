@@ -73,3 +73,9 @@ dmypy.json
 *.pem
 *.key
 env/
+
+
+**/*.class
+**/*.probe
+/build/
+/out/

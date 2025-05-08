@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Substrait Query Client</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #header h1 {
+      margin: 0;
+    }
+    #connection-controls {
+      display: flex;
+      gap: 10px;
+    }
+    #controls {
+      margin-bottom: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      font-family: monospace;
+      padding: 5px;
+    }
+    #plan {
+      grid-column: 1 / span 4;
+      height: 200px;
+    }
+    #data-container {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+      white-space: pre-wrap;
+    }
+    .data-item {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+      word-break: break-all;
+    }
+    button {
+      padding: 5px 10px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button.disconnect-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+    }
+    button.disconnect-btn:hover {
+      background-color: #d32f2f;
+    }
+    #status {
+      font-style: italic;
+    }
+    #error {
+      color: red;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>Substrait Query Client</h1>
+    <div id="connection-controls">
+      <button id="connect-btn">Connect</button>
+      <button id="disconnect-btn" class="disconnect-btn" disabled>Disconnect</button>
+    </div>
+  </div>
+
+  <div id="controls">
+    <input type="text" id="queryString" placeholder="Optional query string"/>
+    <button id="start-query-btn" disabled>Start Query</button>
+    <button id="close-query-btn" disabled>Close Query</button>
+    <span id="status"></span>
+    <label for="plan">Substrait Plan (JSON):</label>
+    <textarea id="plan" placeholder="Paste your Substrait plan JSON here…"></textarea>
+    <div id="error"></div>
+  </div>
+
+  <div id="data-container"></div>
+
+  <script>
+    const WS_URL = "ws://localhost:8765/ws";
+    let socket = null;
+    let sessionName = null;
+
+    const connectBtn       = document.getElementById('connect-btn');
+    const disconnectBtn    = document.getElementById('disconnect-btn');
+    const startQueryBtn    = document.getElementById('start-query-btn');
+    const closeQueryBtn    = document.getElementById('close-query-btn');
+    const statusSpan       = document.getElementById('status');
+    const errorDiv         = document.getElementById('error');
+    const dataContainer    = document.getElementById('data-container');
+    const queryInput       = document.getElementById('queryString');
+    const planTextarea     = document.getElementById('plan');
+
+    function setStatus(msg) {
+      statusSpan.textContent = msg;
+    }
+
+    function appendData(text) {
+      const item = document.createElement('div');
+      item.className = 'data-item';
+      item.textContent = text;
+      dataContainer.appendChild(item);
+      dataContainer.scrollTop = dataContainer.scrollHeight;
+    }
+
+    function clearAll() {
+      dataContainer.innerHTML = '';
+      errorDiv.textContent = '';
+      setStatus('');
+    }
+
+    window.onerror = function(msg, src, line, col, err) {
+      errorDiv.textContent = `Error: ${msg} (${src}:${line})`;
+      return true;
+    };
+
+    connectBtn.addEventListener('click', () => {
+      if (socket && socket.readyState === WebSocket.OPEN) return;
+      clearAll();
+      setStatus('Connecting…');
+
+      socket = new WebSocket(WS_URL);
+
+      socket.onopen = () => {
+        setStatus('Connected');
+        connectBtn.disabled = true;
+        disconnectBtn.disabled = false;
+        startQueryBtn.disabled = false;
+      };
+
+      socket.onmessage = evt => {
+        let text = evt.data;
+        try {
+          const obj = JSON.parse(text);
+          text = JSON.stringify(obj, null, 2);
+        } catch {}
+        appendData(text);
+      };
+
+      socket.onerror = err => {
+        console.error('WebSocket error', err);
+        setStatus('WebSocket error');
+      };
+
+      socket.onclose = () => {
+        setStatus('Disconnected');
+        connectBtn.disabled = false;
+        disconnectBtn.disabled = true;
+        startQueryBtn.disabled = true;
+        closeQueryBtn.disabled = true;
+      };
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (!socket) return;
+      socket.close();
+    });
+
+    startQueryBtn.addEventListener('click', () => {
+      errorDiv.textContent = '';
+      clearAll();
+      let planObj;
+      try {
+        planObj = JSON.parse(planTextarea.value);
+      } catch (e) {
+        errorDiv.textContent = 'Invalid JSON plan: ' + e.message;
+        return;
+      }
+      const msg = {
+        action: 'start_query_session',
+        query_string: queryInput.value,
+        query_plan: planObj
+      };
+      socket.send(JSON.stringify(msg));
+      setStatus('Query started');
+      startQueryBtn.disabled = true;
+      closeQueryBtn.disabled = false;
+    });
+
+    closeQueryBtn.addEventListener('click', () => {
+      if (!socket) return;
+      socket.send(JSON.stringify({ action: 'close' }));
+      setStatus('Query closed');
+      closeQueryBtn.disabled = true;
+      startQueryBtn.disabled = false;
+    });
+  </script>
+</body>
+</html>
