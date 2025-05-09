@@ -76,6 +76,7 @@ env/
 
 
 **/*.class
+**/*.jar
 **/*.probe
 /build/
 /out/

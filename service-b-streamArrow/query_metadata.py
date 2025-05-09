@@ -57,10 +57,8 @@ class systemQueryMetadata:
         test: bool = False,
         queryPlan: dict = None
     ) -> str:
-        print("Triggered")
         plan = queryPlan 
         topic = utils.find_topics(plan)[0]
-        print(topic)
         
         # 2) Generate session name and context
         sessionName = self.createQueryName()

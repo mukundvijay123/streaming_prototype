@@ -31,7 +31,6 @@ class FlightServer(flight.FlightServerBase):
         )
     def do_put(self, context, descriptor, reader, flight_writer):
         try:
-            print("do put called")
             table = reader.read_all()           
             
             # Write the table to shared memory

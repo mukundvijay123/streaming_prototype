@@ -41,7 +41,6 @@ class systemMetadata:
         
 
     def addConsumer(self, topic, grpc_address):
-        print(topic,grpc_address)
         with self.topic_read_lock:
             if topic not in self.topics:
                 return False
