@@ -72,6 +72,7 @@ public class GetSubstraitPlanHandler implements HttpHandler {
                     .includingDefaultValueFields()
                     .preservingProtoFieldNames()
                     .print(plan);
+                System.out.println("Generated Substrait Plan: " + jsonPlan); // Debug log
                 Utils.sendJsonResponse(exchange, 200, jsonPlan);
             } catch (Exception e) {
                 System.err.println("Error creating Substrait plan: " + e.toString());

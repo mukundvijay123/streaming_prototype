@@ -88,6 +88,7 @@ class CreateHandler implements HttpHandler {
             }
 
             this.tableMap.put(topic, createTableStatement);
+            System.out.println("Current tableMap: " + this.tableMap); // Print the ConcurrentHashMap
             Utils.sendJsonResponse(exchange, 201, "{\"success\": \"Stream " + topic + " added to the broker\"}");
             return;
 

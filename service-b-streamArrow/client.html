@@ -149,12 +149,21 @@
       };
 
       socket.onmessage = evt => {
-        let text = evt.data;
-        try {
-          const obj = JSON.parse(text);
-          text = JSON.stringify(obj, null, 2);
-        } catch {}
-        appendData(text);
+        const message = JSON.parse(evt.data);
+
+        if (message.action === "substrait_plan") {
+          // Display the Substrait plan in the textarea
+          planTextarea.value = JSON.stringify(message.plan, null, 2);
+
+          // Confirm execution
+          if (confirm("Substrait plan received. Do you want to execute the query?")) {
+            socket.send(JSON.stringify({ action: "execute_query" }));
+          }
+        } else if (message.error) {
+          errorDiv.textContent = message.error;
+        } else {
+          appendData(evt.data);
+        }
       };
 
       socket.onerror = err => {
@@ -177,24 +186,19 @@
     });
 
     startQueryBtn.addEventListener('click', () => {
-      errorDiv.textContent = '';
-      clearAll();
-      let planObj;
-      try {
-        planObj = JSON.parse(planTextarea.value);
-      } catch (e) {
-        errorDiv.textContent = 'Invalid JSON plan: ' + e.message;
+      const query = queryInput.value.trim();
+      if (!query) {
+        errorDiv.textContent = "Query string cannot be empty.";
         return;
       }
-      const msg = {
-        action: 'start_query_session',
-        query_string: queryInput.value,
-        query_plan: planObj
-      };
-      socket.send(JSON.stringify(msg));
-      setStatus('Query started');
-      startQueryBtn.disabled = true;
-      closeQueryBtn.disabled = false;
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        // Quote identifiers in the query string
+        const quotedQuery = query.replace(/\b(timestamp)\b/gi, '`$1`');
+        socket.send(JSON.stringify({ action: "start_query", query: quotedQuery }));
+      } else {
+        errorDiv.textContent = "WebSocket is not connected.";
+      }
     });
 
     closeQueryBtn.addEventListener('click', () => {
