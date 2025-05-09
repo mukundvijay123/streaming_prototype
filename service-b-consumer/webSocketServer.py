@@ -38,13 +38,11 @@ def blocking_consumer(shm: SharedMemoryResources, q: queue.Queue):
         
         try:
             evt = shm.read()
-            print("hello",type(evt))
         except Exception as e:
             print(f"[{datetime.now().strftime('%H:%M:%S')}] [ConsumerThread] Read error: {e}")
             evt = None
         if isinstance(evt, pa.Table):
             q.put(evt)
-            print(q.qsize())
         # avoid a tight busy loop
         
 

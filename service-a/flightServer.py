@@ -18,13 +18,10 @@ class FlightServer(flight.FlightServerBase):
         ]
     
     def do_action(self,context,action):
-        print(action.type)
         success=None
         if action.type=="subscribe":
-            print("hello")
             address,topic=extract_subscription(action)
             if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic):
-                print("hi")
                 success=self.systemMetadata.addConsumer(topic ,address)
                 response_msg="Success"
         elif action.type=="unsubscribe":

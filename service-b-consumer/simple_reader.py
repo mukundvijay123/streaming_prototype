@@ -39,7 +39,7 @@ def simple_reader_process(shared_memory_name, lock, write_index, read_index,
             
             # If we got data, print it
             if isinstance(event_data,pa.Table):
-                print("Hellooooooo",(event_data.schema.metadata[b"topic"]))
+                pass
                 #print(f"[{datetime.now().isoformat()}] [Reader] Received event: {json.dumps(event_data, default=str)}")
                 
             # Sleep for a short time before checking again

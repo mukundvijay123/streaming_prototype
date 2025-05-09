@@ -17,7 +17,6 @@ class FlightBroadcaster:
     def _worker(self):
         while True:
             subscriber_set, events, topic = self.task_queue.get()
-            #print(events[0])
             if not events:
                 continue
             for subscriber in subscriber_set:
