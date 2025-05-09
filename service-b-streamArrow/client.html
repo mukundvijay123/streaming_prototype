@@ -51,7 +51,7 @@
       margin: 5px 0;
       padding: 5px;
       border-bottom: 1px solid #ddd;
-      word-break: break-all;
+      word-break: break-word;
     }
     button {
       padding: 5px 10px;
@@ -99,7 +99,7 @@
   <script>
     const WS_URL = "ws://localhost:8765/ws";
     let socket = null;
-    let sessionName = null;
+    let queryActive = false;
 
     const connectBtn       = document.getElementById('connect-btn');
     const disconnectBtn    = document.getElementById('disconnect-btn');
@@ -109,7 +109,6 @@
     const errorDiv         = document.getElementById('error');
     const dataContainer    = document.getElementById('data-container');
     const queryInput       = document.getElementById('queryString');
-    const planTextarea     = document.getElementById('plan');
 
     function setStatus(msg) {
       statusSpan.textContent = msg;
@@ -129,6 +128,13 @@
       setStatus('');
     }
 
+    function setConnectedState(connected) {
+      connectBtn.disabled = connected;
+      disconnectBtn.disabled = !connected;
+      startQueryBtn.disabled = !connected || queryActive;
+      closeQueryBtn.disabled = !connected || !queryActive;
+    }
+
     window.onerror = function(msg, src, line, col, err) {
       errorDiv.textContent = `Error: ${msg} (${src}:${line})`;
       return true;
@@ -136,6 +142,7 @@
 
     connectBtn.addEventListener('click', () => {
       if (socket && socket.readyState === WebSocket.OPEN) return;
+
       clearAll();
       setStatus('Connecting…');
 
@@ -143,70 +150,65 @@
 
       socket.onopen = () => {
         setStatus('Connected');
-        connectBtn.disabled = true;
-        disconnectBtn.disabled = false;
-        startQueryBtn.disabled = false;
+        setConnectedState(true);
       };
 
       socket.onmessage = evt => {
-        const message = JSON.parse(evt.data);
-
-        if (message.action === "substrait_plan") {
-          // Display the Substrait plan in the textarea
-          planTextarea.value = JSON.stringify(message.plan, null, 2);
-
-          // Confirm execution
-          if (confirm("Substrait plan received. Do you want to execute the query?")) {
-            socket.send(JSON.stringify({ action: "execute_query" }));
-          }
-        } else if (message.error) {
-          errorDiv.textContent = message.error;
-        } else {
-          appendData(evt.data);
-        }
+        let text = evt.data;
+        appendData(text);
       };
 
       socket.onerror = err => {
         console.error('WebSocket error', err);
         setStatus('WebSocket error');
+        errorDiv.textContent = 'WebSocket error occurred.';
       };
 
       socket.onclose = () => {
         setStatus('Disconnected');
-        connectBtn.disabled = false;
-        disconnectBtn.disabled = true;
-        startQueryBtn.disabled = true;
-        closeQueryBtn.disabled = true;
+        queryActive = false;
+        setConnectedState(false);
       };
     });
 
     disconnectBtn.addEventListener('click', () => {
-      if (!socket) return;
-      socket.close();
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        if (queryActive) {
+          socket.send(JSON.stringify({ action: 'close' }));
+        }
+        socket.close();
+      }
     });
 
     startQueryBtn.addEventListener('click', () => {
-      const query = queryInput.value.trim();
-      if (!query) {
-        errorDiv.textContent = "Query string cannot be empty.";
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+      errorDiv.textContent = '';
+      const queryString = queryInput.value.trim();
+
+      if (!queryString) {
+        errorDiv.textContent = 'Query string is required.';
         return;
       }
 
-      if (socket && socket.readyState === WebSocket.OPEN) {
-        // Quote identifiers in the query string
-        const quotedQuery = query.replace(/\b(timestamp)\b/gi, '`$1`');
-        socket.send(JSON.stringify({ action: "start_query", query: quotedQuery }));
-      } else {
-        errorDiv.textContent = "WebSocket is not connected.";
-      }
+      const msg = {
+        action: 'start_query_session',
+        query_string: queryString,
+      };
+
+      socket.send(JSON.stringify(msg));
+      setStatus('Query started');
+      queryActive = true;
+      setConnectedState(true);
     });
 
     closeQueryBtn.addEventListener('click', () => {
-      if (!socket) return;
+      if (!socket || socket.readyState !== WebSocket.OPEN || !queryActive) return;
+
       socket.send(JSON.stringify({ action: 'close' }));
       setStatus('Query closed');
-      closeQueryBtn.disabled = true;
-      startQueryBtn.disabled = false;
+      queryActive = false;
+      setConnectedState(true);
     });
   </script>
 </body>

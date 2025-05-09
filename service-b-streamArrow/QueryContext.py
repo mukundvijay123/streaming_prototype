@@ -20,10 +20,12 @@ class queryContext:
 
     def start(self):
         plan_bytes = tobytes(json.dumps(self.QueryPlan))
+        print("QueryPlan")
         print("error here")
         buf = pa._substrait._parse_json_plan(plan_bytes)
         print("or here")
         self.QueryPlan=buf
+        print(self.QueryPlan)
 
         self.__QueryThread.start()
         #self.__QueryThread.join()
@@ -38,9 +40,10 @@ class queryContext:
             
     def __runQuery(self):
         while not self.__stopEvent.is_set():
-
+            print("hello")
             reader = pa.substrait.run_query(self.QueryPlan, table_provider=self.__eventProvider)
             event=reader.read_all()
+            print("bye")
             print(event)
             if isinstance(event,pa.Table):
                 metadata=event.schema.metadata or {}

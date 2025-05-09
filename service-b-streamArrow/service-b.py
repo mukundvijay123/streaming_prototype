@@ -21,7 +21,7 @@ def startFlightServer(shared_memory_name, lock, write_index, read_index, data_se
         data_section_start,
         write_data_idx,
         read_data_idx,
-        location='grpc://0.0.0.0:8816',
+        location='grpc://0.0.0.0:8817',
         event=event,
         event2=event2,
         header_size=header_size,

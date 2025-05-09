@@ -7,39 +7,23 @@ from flightServer import FlightServer
 import threading
 import requests  # Add this import for HTTP requests
 
-JAVA_SERVER_ADDRESS = "http://localhost:8080"  # Address of the Calcite server
+JAVA_SERVER_ADDRESS = "http://127.0.0.1:8080"  # Address of the Calcite server
 
 system_metadata=systemMetadata(3)
-
-#print(system_metadata)
-
 queue_map=QueueMap()
-
-
 scheduler=Scheduler(system_metadata,queue_map,5)
-#print(scheduler)
 
            
 for _ in range(system_metadata.broadcastThreads):
     broadcastThread=FlightBroadcaster()
     scheduler.AddBroadcastThread(broadcastThread)
-#print(scheduler)
 
 streamSimulatorThread=threading.Thread(target=streamSimulator,args=(queue_map,))
 streamSimulatorThread.start()
 
 scheduler.start()
 
-def start_flight_server():
-    """
-    Starts the FlightServer in a separate thread.
-    """
-    server = FlightServer(system_metadata)
-    server.serve()
 
-# Start FlightServer in a separate thread
-flight_server_thread = threading.Thread(target=start_flight_server, daemon=True)
-flight_server_thread.start()
 
 def add_topic_to_system(topic_name, schema):
     """
@@ -65,8 +49,8 @@ def add_topic_to_system(topic_name, schema):
 # Define schema for topics
 schema_template = """
 CREATE TABLE IF NOT EXISTS {topic_name} (
-        id SERIAL PRIMARY KEY,
-        timestamp TIMESTAMP NOT NULL,
+        id INTEGER,
+        "timestamp" TIMESTAMP NOT NULL,
         stock_symbol VARCHAR(10) NOT NULL,
         price NUMERIC(10, 2) NOT NULL,
         volume INTEGER NOT NULL,
@@ -83,3 +67,9 @@ for topic in ["ABC", "XYZ", "LMN"]:
 
 
 print(system_metadata.readTopics())
+
+server = FlightServer(system_metadata)
+server.serve()
+
+
+

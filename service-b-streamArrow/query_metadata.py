@@ -57,7 +57,7 @@ class systemQueryMetadata:
         test: bool = False,
         queryPlan: dict = None
     ) -> str:
-        
+        print("Triggered")
         plan = queryPlan 
         topic = utils.find_topics(plan)[0]
         print(topic)

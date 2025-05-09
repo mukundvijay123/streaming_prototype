@@ -3,7 +3,6 @@ import re
 def extract_subscription(action):
     try:
         data = json.loads(action.body.to_pybytes().decode("utf-8"))
-        print(data)
         if "address"  not in data or "topic" not in data:
             raise ValueError("Action body does not contain valid subscription fields")
         return (data["address"],data["topic"])
