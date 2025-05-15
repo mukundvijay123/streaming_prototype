@@ -1,80 +1,222 @@
-import duckdb
-import adbc_driver_postgresql.dbapi as adbc
-from datetime import datetime, timedelta
-from time import sleep
-from queue import Queue
-import os
-import csv
-import pyarrow as pa
-from pyarrow import csv as pa_csv
+from flask import Flask, request, jsonify, render_template_string
+import requests
+import json
 
-# Set up DuckDB connection
-duck = duckdb.connect()
+app = Flask(__name__)
 
-cursor=duck.executemany('INSTALL substrait FROM community;LOAD substrait;')
+# Configuration
+SQL_SERVICE_URL = "http://127.0.0.1:8080"
 
-def setup():
-    DB_URI = "postgresql://postgres:123456789@localhost:5432/arrow_kafka"
-    conn = adbc.connect(uri=DB_URI)
+# HTML template for the test UI
+HTML_TEMPLATE = """
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SQL Service Test Client</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { display: flex; }
+        .panel { flex: 1; margin: 10px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        textarea { width: 100%; height: 150px; margin-bottom: 10px; }
+        button { padding: 8px 15px; background-color: #4CAF50; color: white; border: none; cursor: pointer; }
+        .output { margin-top: 20px; padding: 10px; background-color: #f5f5f5; border-radius: 5px; white-space: pre-wrap; }
+        h2 { color: #333; }
+    </style>
+</head>
+<body>
+    <h1>SQL Service Test Client</h1>
     
-    # Create output directory if it doesn't exist
-    os.makedirs("stock_results", exist_ok=True)
+    <div class="container">
+        <div class="panel">
+            <h2>Create Table Definition</h2>
+            <div>
+                <label for="create-topic">Topic:</label>
+                <input type="text" id="create-topic" placeholder="e.g., employees">
+            </div>
+            <div>
+                <label for="create-statement">CREATE TABLE Statement:</label>
+                <textarea id="create-statement" placeholder="CREATE TABLE employees (id INT NOT NULL, name VARCHAR(100), salary INT NOT NULL)"></textarea>
+            </div>
+            <button onclick="sendRequest('/create')">Create</button>
+            <div class="output" id="create-output"></div>
+        </div>
+        
+        <div class="panel">
+            <h2>Alter Table Definition</h2>
+            <div>
+                <label for="alter-topic">Topic:</label>
+                <input type="text" id="alter-topic" placeholder="e.g., employees">
+            </div>
+            <div>
+                <label for="alter-statement">Updated CREATE TABLE Statement:</label>
+                <textarea id="alter-statement" placeholder="CREATE TABLE employees (id INT NOT NULL, name VARCHAR(100), salary INT NOT NULL, department VARCHAR(50))"></textarea>
+            </div>
+            <button onclick="sendRequest('/alter')">Alter</button>
+            <div class="output" id="alter-output"></div>
+        </div>
+    </div>
     
-    # Create or truncate the single output file with headers
-    output_file = "stock_results/all_stock_data.csv"
-    with open(output_file, 'w', newline='') as f:
-        f.write("timestamp,stock_symbol,id,price,volume,bid_price,ask_price,spread\n")
+    <div class="container">
+        <div class="panel">
+            <h2>Get Substrait Plan</h2>
+            <div>
+                <label for="query">SQL Query:</label>
+                <textarea id="query" placeholder="SELECT id, name FROM employees WHERE salary > 50000"></textarea>
+            </div>
+            <button onclick="sendRequest('/getSubstrait')">Get Plan</button>
+            <div class="output" id="substrait-output"></div>
+        </div>
+        
+        <div class="panel">
+            <h2>Delete Table Definition</h2>
+            <div>
+                <label for="delete-topic">Topic:</label>
+                <input type="text" id="delete-topic" placeholder="e.g., employees">
+            </div>
+            <button onclick="sendRequest('/delete')">Delete</button>
+            <div class="output" id="delete-output"></div>
+        </div>
+    </div>
     
-    return conn
-
-def append_to_csv(arrow_table, topic, timestamp):
-    # Single output file
-    output_file = "stock_results/all_stock_data.csv"
-    
-    # Add timestamp and topic columns if they're not already in the data
-    has_timestamp = 'timestamp' in arrow_table.column_names
-    has_symbol = 'stock_symbol' in arrow_table.column_names
-    
-    # Convert to pandas to more easily manipulate before writing
-    # This step could be optimized for very large datasets
-    pandas_df = arrow_table.to_pandas()
-    
-    # Append to the CSV file without writing headers
-    pandas_df.to_csv(output_file, mode='a', header=False, index=False)
-    print(f"Results appended to {output_file}")
-
-def queryDB(conn, queue):
-    timeToBegin = '2025-03-27 09:00:00'
-    time = datetime.strptime(timeToBegin, '%Y-%m-%d %H:%M:%S')
-    cursor = conn.cursor()
-    topics = ['ABC', 'XYZ', 'LMN']
-    
-    while True:
-        for topic in topics:
-            query = "SELECT * FROM stock_prices_2 WHERE timestamp = $1 AND stock_symbol = $2;"
-            cursor.execute(query, (time, topic))
+    <script>
+        function sendRequest(endpoint) {
+            let url = '/test' + endpoint;
+            let data = {};
+            let outputId = '';
             
-            event = cursor.fetch_arrow_table()
+            if (endpoint === '/create') {
+                data = {
+                    topic: document.getElementById('create-topic').value,
+                    createTableStatement: document.getElementById('create-statement').value
+                };
+                outputId = 'create-output';
+            } else if (endpoint === '/alter') {
+                data = {
+                    topic: document.getElementById('alter-topic').value,
+                    createTableStatement: document.getElementById('alter-statement').value
+                };
+                outputId = 'alter-output';
+            } else if (endpoint === '/getSubstrait') {
+                data = {
+                    query: document.getElementById('query').value
+                };
+                outputId = 'substrait-output';
+            } else if (endpoint === '/delete') {
+                data = {
+                    topic: document.getElementById('delete-topic').value
+                };
+                outputId = 'delete-output';
+            }
             
-            # Register the arrow table
-            duck.register("event_table", event)
-            
-            # Cast the price column to a numeric type in the query
-            df = duck.execute("SELECT * FROM event_table WHERE CAST(price AS DOUBLE) > 150").fetch_arrow_table()
-            
-            # If we have results, append them to our single CSV file
-            if df.num_rows > 0:
-                append_to_csv(df, topic, time)
-                
-            print(df)  # Or further transform
-            duck.unregister('event_table')
-            
-            time += timedelta(seconds=1)
-            sleep(1)
+            // Fixed: Send requests to the Flask server instead of directly to the SQL service
+            fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById(outputId).textContent = JSON.stringify(data, null, 2);
+            })
+            .catch(error => {
+                document.getElementById(outputId).textContent = 'Error: ' + error;
+            });
+        }
+    </script>
+</body>
+</html>
+"""
 
-def streamSimulator(q: Queue):
-    conn = setup()
-    queryDB(conn, q)
+@app.route('/')
+def index():
+    """Render the test UI"""
+    return render_template_string(HTML_TEMPLATE)
 
-q = Queue()
-streamSimulator(q)
+@app.route('/test/create', methods=['POST'])
+def test_create():
+    """Test the /create endpoint"""
+    data = request.json
+    try:
+        response = requests.post(
+            f"{SQL_SERVICE_URL}/create", 
+            json=data,
+            headers={'Content-Type': 'application/json'}
+        )
+        print("Response is:",response)
+        return jsonify({
+            'status': response.status_code,
+            'content': response.json() if response.headers.get('content-type') == 'application/json' else response.text
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 500,
+            'error': str(e)
+        })
+
+@app.route('/test/alter', methods=['POST'])
+def test_alter():
+    """Test the /alter endpoint"""
+    data = request.json
+    try:
+        response = requests.post(
+            f"{SQL_SERVICE_URL}/alter", 
+            json=data,
+            headers={'Content-Type': 'application/json'}
+        )
+        return jsonify({
+            'status': response.status_code,
+            'content': response.json() if response.headers.get('content-type') == 'application/json' else response.text
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 500,
+            'error': str(e)
+        })
+
+@app.route('/test/getSubstrait', methods=['POST'])
+def test_get_substrait():
+    """Test the /getSubstrait endpoint"""
+    data = request.json
+    print(data)
+    try:
+        response = requests.post(
+            f"{SQL_SERVICE_URL}/getSubstrait", 
+            json=data,
+            headers={'Content-Type': 'application/json'}
+        )
+        return jsonify({
+            'status': response.status_code,
+            'content': response.json() if response.headers.get('content-type') == 'application/json' else response.text
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 500,
+            'error': str(e)
+        })
+
+@app.route('/test/delete', methods=['POST'])
+def test_delete():
+    """Test the /delete endpoint"""
+    data = request.json
+    try:
+        response = requests.post(
+            f"{SQL_SERVICE_URL}/delete", 
+            json=data,
+            headers={'Content-Type': 'application/json'}
+        )
+        return jsonify({
+            'status': response.status_code,
+            'content': response.json() if response.headers.get('content-type') == 'application/json' else response.text
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 500,
+            'error': str(e)
+        })
+
+if __name__ == '__main__':
+    print("Flask test client for SQL Service started at http://localhost:5000")
+    print("Make sure your Java SQL Service is running at", SQL_SERVICE_URL)
+    app.run(debug=True)
