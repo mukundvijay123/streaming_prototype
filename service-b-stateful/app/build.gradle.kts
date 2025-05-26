@@ -22,9 +22,18 @@ dependencies {
 
     // This dependency is used by the application.
     implementation("com.google.guava:guava:31.1-jre")
+    implementation("org.apache.beam:beam-sdks-java-core:2.65.0")
+    implementation("org.apache.beam:beam-runners-direct-java:2.65.0")
+    implementation("org.apache.beam:beam-sdks-java-extensions-sql:2.65.0")
+    implementation("org.apache.arrow:arrow-vector:18.3.0")
+    implementation("org.apache.arrow:arrow-memory-netty:18.3.0")
 }
 
 application {
     // Define the main class for the application.
-    mainClass.set("serviceb.App")
+    mainClass.set("serviceb.misc.Demo")
+
+    applicationDefaultJvmArgs = listOf(
+    "--add-opens=java.base/java.nio=ALL-UNNAMED"
+    )
 }

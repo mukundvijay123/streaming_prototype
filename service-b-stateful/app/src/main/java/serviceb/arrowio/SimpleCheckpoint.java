@@ -1,4 +1,4 @@
-package beam.streaming.arrowio;
+package serviceb.arrowio;
 
 import java.io.Serializable;
 
