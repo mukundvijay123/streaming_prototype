@@ -1,4 +1,4 @@
-package beam.streaming.expt;
+package serviceb.misc;
 
 import org.apache.beam.runners.direct.DirectOptions;
 import org.apache.beam.sdk.Pipeline;
@@ -191,7 +191,7 @@ public class SimpleQueuePipeline {
                 int n = random.nextInt(100);
                 RowSource.addToQueue(k, n, "Data item " + counter++);
                 try {
-                    int t = random.nextInt(100, 500);//in microseconds -> random events
+                    int t = random.nextInt(100);//in microseconds -> random events
                     Thread.sleep(t);
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
