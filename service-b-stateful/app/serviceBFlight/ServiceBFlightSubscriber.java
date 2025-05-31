@@ -22,16 +22,16 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * and stores received Arrow data in Chronicle Queue (Thread-Safe Version)
  */
 public class ServiceBFlightSubscriber {
-    private final BufferAllocator allocator;
-    private final FlightClient flightClient;
-    private final ChronicleQueue chronicleQueue;
-    private final String serviceAAddress;
-    private final String serviceBAddress;
+    public final BufferAllocator allocator;
+    public final FlightClient flightClient;
+    public final ChronicleQueue chronicleQueue;
+    public final String serviceAAddress;
+    public final String serviceBAddress;
    // private final ExecutorService executorService;
-    private final Set<String> subscribedTopics;
-    private final FlightServer flightServer;
-    private final AtomicBoolean isRunning;
-    private final ThreadLocal<ExcerptAppender> appenderThreadLocal;
+   public final Set<String> subscribedTopics;
+    public final FlightServer flightServer;
+    public final AtomicBoolean isRunning;
+    public final ThreadLocal<ExcerptAppender> appenderThreadLocal;
 
     public ServiceBFlightSubscriber(String serviceAAddress, String serviceBAddress,
                                     String chronicleQueuePath, int serviceBPort) {
