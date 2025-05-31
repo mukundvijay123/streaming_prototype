@@ -1,3 +1,7 @@
+/*
+ * THIS PACKAGE IS NOT THREAD SAFE
+ */
+
 package serviceb.arrowio;
 
 
@@ -10,13 +14,14 @@ import org.joda.time.Duration;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.NoSuchElementException;
+import java.util.NoSuchElementException;        
 import java.util.Map;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;;
 
 class RowReader  extends UnboundedReader<Row> {
+    private static final String eventtimeColumnName="event_time";
     private final arrowIO source;
     private Instant watermark;
     private VectorSchemaRoot currentEventTable;
@@ -26,7 +31,7 @@ class RowReader  extends UnboundedReader<Row> {
     private Schema arrowSchema;
     private org.apache.beam.sdk.schemas.Schema beamSchema;
     private Row currentRow;
-    private static final Integer maximumAllowedDelay=300;
+    private static final Integer maximumAllowedDelay=3;
 
     //what watermark to start from
     public RowReader(arrowIO source,Instant watermark){
@@ -34,12 +39,18 @@ class RowReader  extends UnboundedReader<Row> {
         this.watermark=watermark;
         this.source.createConn();
         this.arrowSchema=source.arrowSchema;
-        this.beamSchema=ArrowConversion.ArrowSchemaTranslator.toBeamSchema(arrowSchema.getFields());
+        try{
+            this.beamSchema=arrowIOUtils.ArrowSchemaConverter(this.arrowSchema);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+        
     }
 
     @Override
     public boolean start() throws IOException{
         boolean result=advance();
+        //System.out.println("Create Result: " + result+"\n\n\n");
         return result;
     }
 
@@ -50,6 +61,7 @@ class RowReader  extends UnboundedReader<Row> {
             // First, try to get the next row from current iterator
             if (this.tableIterator != null && this.tableIterator.hasNext()) {
                 this.currentRow = this.tableIterator.next();
+                //System.out.println("Advance Result: " + true+"\n\n\n");
                 return true;
             }
 
@@ -57,6 +69,7 @@ class RowReader  extends UnboundedReader<Row> {
             VectorSchemaRoot temp = source.getEventTable();
             
             if (temp == null) {
+                //System.out.println("Advance Result: " + false+"\n\n\n");
                 return false;
             }
 
@@ -78,24 +91,48 @@ class RowReader  extends UnboundedReader<Row> {
             
             // Get the first row from the new iterator
             if (this.tableIterator.hasNext()) {
-                this.currentRow = this.tableIterator.next();
+                try{
+                    this.currentRow = this.tableIterator.next();
+                    //System.out.println(currentRow);
+                }catch(Exception e){
+                    //System.out.println("This aint good , idk how to fix it ");
+                }
+                
+                //System.out.println("Advance Result: " + true+"\n\n\n");
                 return true;
             }
             
+            //System.out.println("Advance Result: " + false+"\n\n\n");
             return false;
         } catch (Exception e) {
             e.printStackTrace();
-            throw new IOException("Error while reading from queue", e);
+            throw new IOException(e.getMessage(), e);
         }
     }
+
+
 
     @Override
     public Row getCurrent() throws NoSuchElementException {
         if (currentRow == null) {
             throw new NoSuchElementException("No current row available");
         }
-        return currentRow;
+        //adding event time in the pcollection row
+        Row.Builder builder = Row.withSchema(this.beamSchema);
+        for (int i = 0; i < this.beamSchema.getFieldCount(); i++) {
+            String fieldName = this.beamSchema.getField(i).getName();
+            if (!fieldName.equals(eventtimeColumnName)) {
+                builder.addValue(currentRow.getValue(fieldName));
+            }
+        }
+
+
+        builder.addValue(this.timeStamp);
+
+        return builder.build();
     }
+
+
 
     public Instant getCurrentTimestamp() throws NoSuchElementException {
         if (this.timeStamp == null) {
@@ -108,6 +145,8 @@ class RowReader  extends UnboundedReader<Row> {
     public Instant getWatermark(){
         //this logic has to be fixed
         this.watermark = this.LatestTime.minus(Duration.standardSeconds(maximumAllowedDelay));
+        
+        //System.out.println("getWaterMark Result"+this.watermark+"\n\n\n");
         return this.watermark;
     }
 
@@ -123,6 +162,7 @@ class RowReader  extends UnboundedReader<Row> {
 
     @Override
     public UnboundedSource<Row,?>getCurrentSource(){
+        //System.out.println("GetCurrentSource called"+"\n\n\n");
         return this.source;
     }
 

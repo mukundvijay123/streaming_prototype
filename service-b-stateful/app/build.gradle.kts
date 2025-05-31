@@ -31,7 +31,7 @@ dependencies {
 
 application {
     // Define the main class for the application.
-    mainClass.set("serviceb.misc.Demo4")
+    mainClass.set("serviceb.misc.Demo5")
 
     applicationDefaultJvmArgs = listOf(
     "--add-opens=java.base/java.nio=ALL-UNNAMED"

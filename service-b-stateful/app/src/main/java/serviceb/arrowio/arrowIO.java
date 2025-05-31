@@ -1,3 +1,6 @@
+/*
+ * THIS PACKAGE IS NOT THREAD SAFE
+*/
 package serviceb.arrowio;
 
 
