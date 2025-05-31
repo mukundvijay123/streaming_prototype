@@ -3,21 +3,19 @@ package org.example;
 import java.time.LocalDateTime;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.*;
 
 public class mainClassForFlightServerB {
+    private static final BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage> queue1 = new LinkedBlockingQueue<>();
+    private static final BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage> queue2 = new LinkedBlockingQueue<>();
+    private static final BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage> queue3 = new LinkedBlockingQueue<>();
+    private static final BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage> queue4 = new LinkedBlockingQueue<>();
     public static void main(String[] args) {
         ServiceBFlightSubscriber serviceB = null;
-        /*
-        CLASS:
-            ChronicleQueue
-            Tailer
-            HashMap ->
-            {
-            "<TOPIC>" : List <BlockingQueue>
+        final Thread dequeueThread;
+        final Thread printerThread;
 
-            }
-       a single thread looking at topic name in metadata and putting it in the respective queues
-         */
         try {
             String serviceAAddress = System.getProperty("serviceA.address", "grpc://localhost:8815");
             String serviceBAddress = System.getProperty("serviceB.address", "grpc://localhost:8816");
@@ -31,15 +29,74 @@ public class mainClassForFlightServerB {
 
             serviceB = new ServiceBFlightSubscriber(
                     serviceAAddress, serviceBAddress, chronicleQueuePath, serviceBPort);
+            final ServiceBFlightSubscriber localServiceB = serviceB;
 
             List<String> topics = Arrays.asList("ABC", "XYZ");
             System.out.println("Starting to subscribe to topics: " + topics);
             serviceB.subscribeToTopics(topics);
 
+            // Setup topic-to-queues map for dequeuing messages
+            Map<String, List<BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage>>> topicToQueues = new ConcurrentHashMap<>();
+            
+            List<BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage>> allQueues = Arrays.asList(queue1, queue2, queue3, queue4);
+            topicToQueues.put("ABC", Arrays.asList(queue1, queue2,queue3));
+            topicToQueues.put("XYZ", Arrays.asList(queue4));
+            System.out.println("Topics:" +topicToQueues.keySet());
+            System.out.println("Values:"+topicToQueues.values());
+            System.out.println(" Topic to queues mapping configured");
+
+            ChronicleQueueDequeueWorker dequeueWorker = new ChronicleQueueDequeueWorker(
+                    serviceB.chronicleQueue,
+                    serviceB.isRunning,
+                    topicToQueues
+            );
+
+            dequeueThread = new Thread(dequeueWorker, "Dequeue-Worker-Thread");
+            dequeueThread.start();
+
+            Runnable printerRunnable = () -> {
+                while (localServiceB.isRunning()) {
+                    for (String topic : topics) {
+                        List<BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage>> queues = topicToQueues.get(topic);
+                        if (queues != null) {
+                            for (BlockingQueue<ChronicleQueueDequeueWorker.QueueMessage> queue : queues) {
+                                ChronicleQueueDequeueWorker.QueueMessage msg = queue.poll();
+                                if (msg != null) {
+                                    System.out.println("[PrinterThread] Received message:");
+                                    System.out.println("  Topic: " + msg.getTopic());
+                                    // System.out.println("  Timestamp: " + msg.getTimestamp());
+                                    // System.out.println("  Batch Number: " + msg.getBatchNumber());
+                                    System.out.println("  Arrow Data : " + msg.getArrowData());
+                                    System.out.println("--------------------------------------");
+                                }
+                            }
+                        }
+                    }
+                    try {
+                        Thread.sleep(100);  // avoid busy waiting
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                }
+                System.out.println("Printer thread stopped.");
+            };
+
+            // Assign and start the printer thread
+            printerThread = new Thread(printerRunnable, "Printer-Thread");
+            printerThread.start();
+
             final ServiceBFlightSubscriber finalServiceB = serviceB;
             Runtime.getRuntime().addShutdownHook(new Thread(() -> {
                 System.out.println("=== SHUTDOWN HOOK TRIGGERED ===");
                 finalServiceB.shutdown();
+
+                // Interrupt threads if running
+                if (dequeueThread != null) {
+                    dequeueThread.interrupt();
+                }
+                if (printerThread != null) {
+                    printerThread.interrupt();
+                }
             }));
 
             System.out.println("=== SERVICE RUNNING - Press Ctrl+C to stop ===");
@@ -59,4 +116,5 @@ public class mainClassForFlightServerB {
             System.exit(1);
         }
     }
+
 }
