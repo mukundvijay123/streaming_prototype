@@ -27,6 +27,9 @@ dependencies {
     implementation("org.apache.beam:beam-sdks-java-extensions-sql:2.65.0")
     implementation("org.apache.arrow:arrow-vector:18.3.0")
     implementation("org.apache.arrow:arrow-memory-netty:18.3.0")
+    implementation("org.apache.arrow:flight-core:14.0.1")
+    implementation("org.apache.arrow:arrow-flight:14.0.1")
+    implementation("net.openhft:chronicle-queue:5.27ea5")
 }
 
 application {

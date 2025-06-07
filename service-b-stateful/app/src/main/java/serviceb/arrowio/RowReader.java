@@ -31,7 +31,7 @@ class RowReader  extends UnboundedReader<Row> {
     private Schema arrowSchema;
     private org.apache.beam.sdk.schemas.Schema beamSchema;
     private Row currentRow;
-    private static final Integer maximumAllowedDelay=3;
+    private static final Integer maximumAllowedDelay=300;
 
     //what watermark to start from
     public RowReader(arrowIO source,Instant watermark){
