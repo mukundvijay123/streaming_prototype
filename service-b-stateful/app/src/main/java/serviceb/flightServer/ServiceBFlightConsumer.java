@@ -27,9 +27,10 @@ import org.apache.arrow.memory.RootAllocator;
 
 public class ServiceBFlightConsumer{
     public final SystemMetadata metadata;
-    private final FlightServer flightServer;
+    public final FlightServer flightServer;
     private final FlightClient flightClient;
     private final BufferAllocator allocator;
+    private  final AtomicBoolean isRunning;
     private final ChronicleQueue chronicleQueue;
     private final ThreadLocal<ExcerptAppender> appenderThreadLocal;
     private final String serviceAaddress;
@@ -44,6 +45,7 @@ public class ServiceBFlightConsumer{
         this.appenderThreadLocal =ThreadLocal.withInitial(() -> chronicleQueue.createAppender());
         this.serviceAaddress=serviceAaddress;
         this.serviceBAddress=serviceBaddress;
+        this.isRunning=new AtomicBoolean(true);
 
 
         URI serviceAUri = URI.create(serviceAaddress);
@@ -58,6 +60,10 @@ public class ServiceBFlightConsumer{
             e.printStackTrace();
             throw new RuntimeException("Constructor failed", e);
         }
+    }
+
+    public final boolean isRunning(){
+        return this.isRunning.get();
     }
 
 
@@ -146,7 +152,7 @@ public class ServiceBFlightConsumer{
         }
 
         for(String topic:topics){
-            if(!metadata.contains(topic)){
+            if( metadata.contains(topic)){
                 StreamSubscribeUtils.unsubscribeToTopic(this.flightClient, this.serviceBAddress, topic);
                 this.metadata.remove(topic);
             }
@@ -156,11 +162,25 @@ public class ServiceBFlightConsumer{
 
     //Shutdown
     public void shutdown(){
+        this.isRunning.set(false);
         System.out.println("\n===FLIGHT SERVER SHUTDOWN STARTING ===");
         try{
-
+            for(String topic:this.metadata.getSubscribedTopicsAsList()){
+                StreamSubscribeUtils.unsubscribeToTopic(flightClient, serviceBAddress, topic);
+            }
+            flightServer.close();
+            if (flightClient != null) {
+                flightClient.close();
+            }
+            if (chronicleQueue != null) {
+                chronicleQueue.close();
+            }
+            if (allocator != null) {
+                allocator.close();
+            }
+            appenderThreadLocal.remove();
         }catch(Exception e){
-
+            e.printStackTrace();
         }
     }
 
