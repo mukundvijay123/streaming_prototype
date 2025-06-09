@@ -1,4 +1,4 @@
-package serviceb.flightServer;
+package serviceb.misc;
 
 import java.time.LocalDateTime;
 import java.util.Arrays;
@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
 
+import serviceb.flightServer.ServiceBFlightConsumer;
 import serviceb.flightServer.ChDequeue.ChQDequeueWorker;
 import serviceb.flightServer.ChDequeue.QueueMessage;
 
