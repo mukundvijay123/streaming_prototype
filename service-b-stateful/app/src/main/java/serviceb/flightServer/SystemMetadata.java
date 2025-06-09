@@ -1,7 +1,9 @@
 package serviceb.flightServer;
 
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
 
 class SystemMetadata {
     private final Set<String> subscribedTopics;
@@ -21,6 +23,13 @@ class SystemMetadata {
     public boolean contains(String Topic){
         return this.subscribedTopics.contains(Topic);
     }
+
+    public List<String> getSubscribedTopicsAsList() {
+        return new ArrayList<>(subscribedTopics);
+    }
+
+
+
 
     
 }

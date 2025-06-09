@@ -21,14 +21,14 @@ public class QueueAppender {
         try{
             VectorSchemaRoot root =flightStream.getRoot();
             System.out.println("===ARROW STREAM===");
-            FlightServerUtils.printArrowStream(root);
+            //FlightServerUtils.printArrowStream(root);
             Schema schema =root.getSchema();
             int batchCount=0;
             while(flightStream.next()){
                 batchCount++;
                 System.out.println("\n--- Batch " + batchCount + " ---");
                 System.out.println("Row count: " + root.getRowCount());
-                FlightServerUtils.printArrowTableConcise(root);
+                //FlightServerUtils.printArrowTableConcise(root);
                 AppendToChq(appender, root, batchCount);
             }
             ackStream.onNext(PutResult.empty());

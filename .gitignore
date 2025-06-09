@@ -74,6 +74,9 @@ dmypy.json
 *.key
 env/
 
+**/*.cq4
+**/*.cq4t
+
 
 **/*.class
 **/*.jar

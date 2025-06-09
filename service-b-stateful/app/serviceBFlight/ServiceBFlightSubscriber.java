@@ -22,13 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * and stores received Arrow data in Chronicle Queue (Thread-Safe Version)
  */
 public class ServiceBFlightSubscriber {
-    public final BufferAllocator allocator;
-    public final FlightClient flightClient;
-    public final ChronicleQueue chronicleQueue;
-    public final String serviceAAddress;
-    public final String serviceBAddress;
    // private final ExecutorService executorService;
-   public final Set<String> subscribedTopics;
+    public final Set<String> subscribedTopics;
     public final FlightServer flightServer;
     public final AtomicBoolean isRunning;
     public final ThreadLocal<ExcerptAppender> appenderThreadLocal;
@@ -159,7 +154,7 @@ public class ServiceBFlightSubscriber {
 
     public void shutdown() {
         System.out.println("\n=== SHUTDOWN START ===");
-        isRunning.set(false);
+        //isRunning.set(false);
 
         try {
             // Unsubscribe from all topics

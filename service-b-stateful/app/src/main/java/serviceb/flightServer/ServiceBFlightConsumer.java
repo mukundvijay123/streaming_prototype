@@ -30,8 +30,8 @@ public class ServiceBFlightConsumer{
     public final FlightServer flightServer;
     private final FlightClient flightClient;
     private final BufferAllocator allocator;
-    private  final AtomicBoolean isRunning;
-    private final ChronicleQueue chronicleQueue;
+    public  final AtomicBoolean isRunning;
+    public final ChronicleQueue chronicleQueue;
     private final ThreadLocal<ExcerptAppender> appenderThreadLocal;
     private final String serviceAaddress;
     private final String serviceBAddress;

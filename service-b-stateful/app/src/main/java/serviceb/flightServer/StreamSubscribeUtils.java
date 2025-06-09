@@ -33,7 +33,7 @@ public class StreamSubscribeUtils {
 
     }
 
-    public void unsubscribeToTopic(FlightClient flightClient,String MyAddr,String topic){
+    public static void unsubscribeToTopic(FlightClient flightClient,String MyAddr,String topic){
     try{
         if(topic==null){
             return;

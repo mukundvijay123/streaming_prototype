@@ -34,85 +34,84 @@ public class ChQDequeueWorker implements Runnable{
     }
 
     @Override
-    public void run(){
+    public void run() {
         ExcerptTailer tailer = chronicleQueue.createTailer();
         System.out.println("Chronicle Queue dequeue thread started");
-        while(isRunning.get()){
-            try{
-                boolean hasMessage=tailer.readDocument(w->{
-                    try{
-                        byte[] arrowData = w.read("arrowData").bytes();
-                         if (arrowData == null || arrowData.length == 0) {
-                            System.err.println("Received empty or null arrow data");
-                            return;
-                        }
-                        ArrowStreamReader reader1 = new ArrowStreamReader(new ByteArrayInputStream(arrowData), allocator);
-                        VectorSchemaRoot root1 = reader1.getVectorSchemaRoot();
-                        String topic = root1.getSchema().getCustomMetadata().get("topic");
+        try {
+            while (isRunning.get()) {
+                try {
+                    boolean hasMessage = tailer.readDocument(w -> {
+                        try {
+                            byte[] arrowData = w.read("arrowData").bytes();
+                            if (arrowData == null || arrowData.length == 0) {
+                                System.err.println("Received empty or null arrow data");
+                                return;
+                            }
 
-                        //Create QueueMsg
-                        QueueMessage message = new QueueMessage(topic, root1);
-                        //System.out.println("Dequeued message for topic: " + topic + ", data : \n" + arrowData);
+                            try (ArrowStreamReader reader1 = new ArrowStreamReader(
+                                    new ByteArrayInputStream(arrowData), allocator)) {
+                                VectorSchemaRoot root1 = reader1.getVectorSchemaRoot();
+                                reader1.loadNextBatch(); // Required to populate root1
+                                String topic = root1.getSchema().getCustomMetadata().get("topic");
 
-                        //Copy Message into all Queues
-                        List<BlockingQueue<QueueMessage>> targetQueues = MetadataStore.get(topic);
-                        if (targetQueues != null && !targetQueues.isEmpty()) {
-                            int successfulOffers = 0;
-                            for (BlockingQueue<QueueMessage> queue : targetQueues) {
-                                try {
-                                    boolean offered = queue.offer(message, OFFER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                                    if (offered) {
-                                        successfulOffers++;
-                                    } else {
-                                        System.err.println("Failed to offer message to queue for topic: " + topic + 
-                                                         " (queue may be full)");
+                                QueueMessage message = new QueueMessage(topic, root1);
+                                List<BlockingQueue<QueueMessage>> targetQueues = MetadataStore.get(topic);
+                                if (targetQueues != null && !targetQueues.isEmpty()) {
+                                    int successfulOffers = 0;
+                                    for (BlockingQueue<QueueMessage> queue : targetQueues) {
+                                        try {
+                                            boolean offered = queue.offer(message, OFFER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+                                            if (offered) {
+                                                successfulOffers++;
+                                            } else {
+                                                System.err.println("Queue full for topic: " + topic);
+                                            }
+                                        } catch (InterruptedException e) {
+                                            Thread.currentThread().interrupt();
+                                            System.err.println("Interrupted while offering message to queue: " + topic);
+                                            return;
+                                        }
                                     }
-                                } catch (InterruptedException e) {
-                                    Thread.currentThread().interrupt();
-                                    System.err.println("Interrupted while offering message to queue for topic: " + topic);
-                                    return; 
+                                    System.out.println("Distributed message for topic '" + topic +
+                                            "' to " + successfulOffers + "/" + targetQueues.size() + " queues");
+                                } else {
+                                    System.err.println("No queues found for topic: " + topic);
                                 }
                             }
-                            System.out.println("Distributed message for topic '" + topic + 
-                                             "' to " + successfulOffers + "/" + targetQueues.size() + " queues");
-                        } else {
-                            System.err.println("No registered queues found for topic: " + topic);
+                        } catch (Exception e) {
+                            System.err.println("Error processing message: " + e.getMessage());
                         }
-                    }catch(Exception e){
-                        System.err.println("Error processing message: " + e.getMessage());
-                        e.printStackTrace();
+                    });
+
+                    if (!hasMessage) {
+                        Thread.sleep(SLEEP_INTERVAL_MS);
                     }
-                });
-                if (!hasMessage) {
-                    Thread.sleep(SLEEP_INTERVAL_MS);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    System.out.println("Dequeue thread interrupted, shutting down gracefully");
+                    break;
+                } catch (Exception e) {
+                    System.err.println("Unexpected error in dequeue thread: " + e.getMessage());
+                    e.printStackTrace();
+                    break; // Optional: Break on fatal errors
                 }
-
-
-            }catch(InterruptedException e){
-                Thread.currentThread().interrupt();
-                System.out.println("Dequeue thread interrupted, shutting down gracefully");
-                break;
-            }catch(Exception e){
-                System.err.println("Unexpected error in dequeue thread: " + e.getMessage());
-                e.printStackTrace();
+            }
+        } finally {
+            try {
+                tailer.close();
+            } catch (Exception e) {
+                System.err.println("Error closing tailer: " + e.getMessage());
             }
 
             try {
-            tailer.close();
-        } catch (Exception e) {
-            System.err.println("Error closing tailer: " + e.getMessage());
-        }
+                allocator.close();
+            } catch (Exception e) {
+                System.err.println("Error closing allocator: " + e.getMessage());
+            }
 
-        // Close the allocator
-        try {
-            allocator.close();
-        } catch (Exception e) {
-            System.err.println("Error closing allocator: " + e.getMessage());
+            System.out.println("Chronicle Queue dequeue thread stopped");
         }
-
-        System.out.println("Chronicle Queue dequeue thread stopped");
-        }
-    }
+    }  
 
 
 }
