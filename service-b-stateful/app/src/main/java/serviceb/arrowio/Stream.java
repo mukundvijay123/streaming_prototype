@@ -1,7 +1,6 @@
 package serviceb.arrowio;
 
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
 
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.types.pojo.Schema;
@@ -14,11 +13,11 @@ public class Stream {
     public final long pollIntervalMills;
    
 
-    public Stream(String topic,Schema streamSchema,long pollInterval){
+    public Stream(String topic,Schema streamSchema,long pollInterval,BlockingQueue<VectorSchemaRoot> topicQueue){
         this.topic=topic;
         this.streamSchema=streamSchema;
         this.pollIntervalMills=pollInterval;
-        this.topicQueue=new LinkedBlockingQueue<>();
+        this.topicQueue=topicQueue;
     }
 
     public BlockingQueue<VectorSchemaRoot> getQueue(){

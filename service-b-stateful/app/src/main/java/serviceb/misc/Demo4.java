@@ -3,6 +3,7 @@ package serviceb.misc;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadLocalRandom;
 
 import org.apache.arrow.memory.BufferAllocator;
@@ -58,8 +59,8 @@ public class Demo4{
         final Schema customersSchema = new Schema(customersFields, Map.of());
         
         // Create streams
-        Stream ordersStream = new Stream("OrdersTopic", ordersSchema, 10);
-        Stream customersStream = new Stream("CustomersTopic", customersSchema, 10);
+        Stream ordersStream = new Stream("OrdersTopic", ordersSchema, 10,new LinkedBlockingQueue<>());
+        Stream customersStream = new Stream("CustomersTopic", customersSchema, 10,new LinkedBlockingQueue<>());
         
         try{
             arrowIO.Registry.createContext("TestSession");

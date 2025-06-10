@@ -22,19 +22,28 @@ dependencies {
 
     // This dependency is used by the application.
     implementation("com.google.guava:guava:31.1-jre")
+
     implementation("org.apache.beam:beam-sdks-java-core:2.65.0")
     implementation("org.apache.beam:beam-runners-direct-java:2.65.0")
     implementation("org.apache.beam:beam-sdks-java-extensions-sql:2.65.0")
     implementation("org.apache.arrow:arrow-vector:18.3.0")
     implementation("org.apache.arrow:arrow-memory-netty:18.3.0")
+    
     implementation("org.apache.arrow:flight-core:14.0.1")
     implementation("org.apache.arrow:arrow-flight:14.0.1")
+
     implementation("net.openhft:chronicle-queue:5.27ea5")
+
+    implementation("jakarta.websocket:jakarta.websocket-api:2.2.0")
+    implementation("org.glassfish.tyrus:tyrus-server:2.2.0")
+    implementation("org.glassfish.tyrus:tyrus-container-grizzly-server:2.2.0")
+    implementation("org.glassfish:jakarta.json:2.0.1")
+
 }
 
 application {
     // Define the main class for the application.
-    mainClass.set("serviceb.flightServer.DemoMain")
+    mainClass.set("serviceb.App")
 
     applicationDefaultJvmArgs = listOf(
     "--add-opens=java.base/java.nio=ALL-UNNAMED"

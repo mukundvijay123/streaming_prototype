@@ -6,12 +6,15 @@ import java.util.Iterator;
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.Result;
+import org.apache.arrow.vector.types.pojo.Schema;
 
 public class StreamSubscribeUtils {
     
     public StreamSubscribeUtils(){
 
     }
+
+
 
     public static void subscribeToTopic(FlightClient flightClient,String BrokerAddr,String topic){
         try{

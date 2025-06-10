@@ -29,9 +29,12 @@ public class QueryEndpoint {
             String action = jsonMessage.getString("action", null);
             System.out.println("Action: " + action);
 
-            //If action is 
+            //If action is createQuery execute action
 
-            // Further logic (like starting session, calling query engine etc.) comes here.
+            //If action is delete session Delete it here
+            
+
+            
 
         } catch (Exception e) {
             System.err.println("[WebSocket] Error: " + e.getMessage());
