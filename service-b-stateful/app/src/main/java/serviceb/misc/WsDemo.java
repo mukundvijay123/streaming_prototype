@@ -1,11 +1,13 @@
 package serviceb.misc;
 
+import serviceb.Querying.QueryMetadata;
 import serviceb.wsServer.WebsocketServer;
 
 public class WsDemo{
   
     public static void main(String[] args) {
-        WebsocketServer wsServer = new WebsocketServer();
+        QueryMetadata metadata =null;
+        WebsocketServer wsServer = new WebsocketServer(metadata);
 
         // Add shutdown hook for Ctrl+C
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {

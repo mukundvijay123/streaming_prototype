@@ -46,7 +46,7 @@ public class Demo {
             new Field("score", FieldType.nullable(new ArrowType.Int(32, true)), null)
         );
         final Schema arrowSchema = new Schema(fields, Map.of());
-        Stream stream =new Stream("MyTopic",arrowSchema,10);
+        Stream stream =new Stream("MyTopic",arrowSchema,10,new LinkedBlockingQueue<>());
         try{
             arrowIO.Registry.createContext("TestSession");
             arrowIO.Registry.AddStream("TestSession","SomeStream", stream);
