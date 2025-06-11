@@ -28,13 +28,11 @@ public class WebsocketServer {
             System.out.println("WebSocket started at ws://" + hostAddress + ":" + port + "/ws");
 
             // Block main thread so the server keeps running
-            System.out.println("Press Ctrl+C to stop the server...");
-            Thread.currentThread().join(); // Will be interrupted by shutdown hook
+            //System.out.println("Press Ctrl+C to stop the server...");
+            //Thread.currentThread().join(); // Will be interrupted by shutdown hook
 
-        } catch (InterruptedException e) {
-            System.out.println("Server thread interrupted.");
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Server thread interrupted.");
         }
     }
 

@@ -29,10 +29,18 @@ public class QueryEndpoint {
             String action = jsonMessage.getString("action", null);
             System.out.println("Action: " + action);
 
+            if(action=="start_query_session"){
+
+            }else if(action=="delete_quert_session"){
+
+            }else{
+                
+            }
+
             //If action is createQuery execute action
 
             //If action is delete session Delete it here
-            
+
 
             
 

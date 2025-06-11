@@ -36,12 +36,12 @@ public class StreamSubscribeUtils {
 
 
 
-    public static void subscribeToTopic(FlightClient flightClient,String BrokerAddr,String topic){
+    public static void subscribeToTopic(FlightClient flightClient,String ConsumerAddr,String topic){
         try{
             if(topic==null){
                 return;
             }
-            String payload =String.format("{\"address\": \"%s\", \"topic\": \"%s\"}",BrokerAddr,topic);
+            String payload =String.format("{\"address\": \"%s\", \"topic\": \"%s\"}",ConsumerAddr,topic);
             Action action=new Action("subscribe",payload.getBytes(StandardCharsets.UTF_8));
             Iterator<Result> results = flightClient.doAction(action);
             while(results.hasNext()){
@@ -56,12 +56,12 @@ public class StreamSubscribeUtils {
 
     }
 
-    public static void unsubscribeToTopic(FlightClient flightClient,String MyAddr,String topic){
+    public static void unsubscribeToTopic(FlightClient flightClient,String ConsumerAddr,String topic){
     try{
         if(topic==null){
             return;
         }
-        String payload =String.format("{\"address\": \"%s\", \"topic\": \"%s\"}",MyAddr,topic);
+        String payload =String.format("{\"address\": \"%s\", \"topic\": \"%s\"}",ConsumerAddr,topic);
         Action action=new Action("unsubscribe",payload.getBytes(StandardCharsets.UTF_8));
         Iterator<Result> results = flightClient.doAction(action);
         while(results.hasNext()){
