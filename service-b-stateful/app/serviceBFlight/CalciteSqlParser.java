@@ -7,8 +7,6 @@ import org.apache.calcite.sql.parser.ddl.SqlDdlParserImpl;
 import java.util.*;
 
 public class CalciteSqlParser {
-    static Set<String> keywords = Set.of("SELECT", "WHERE", "ORDER", "GROUP", "HAVING",
-            "UNION", "INTERSECT", "EXCEPT", "WITH", "AS", "ON");
     private static SqlParser.Config createParserConfig() {
         return SqlParser.config()
                 .withParserFactory(SqlDdlParserImpl.FACTORY)
