@@ -26,8 +26,8 @@ public class QueueAppender {
             int batchCount=0;
             while(flightStream.next()){
                 batchCount++;
-                System.out.println("\n--- Batch " + batchCount + " ---");
-                System.out.println("Row count: " + root.getRowCount());
+                //System.out.println("\n--- Batch " + batchCount + " ---");
+                //System.out.println("Row count: " + root.getRowCount());
                 //FlightServerUtils.printArrowTableConcise(root);
                 AppendToChq(appender, root, batchCount);
             }

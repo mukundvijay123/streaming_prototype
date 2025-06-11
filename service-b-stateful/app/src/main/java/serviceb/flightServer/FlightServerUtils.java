@@ -17,20 +17,6 @@ public class FlightServerUtils {
 
     }
 
-    public static Schema fetchSchema(String topic, FlightClient client) {
-        // Create a descriptor using the topic as a path
-        FlightDescriptor descriptor = FlightDescriptor.path(Collections.singletonList(topic));
-
-        try {
-            // Get FlightInfo from the server using the descriptor
-            FlightInfo info = client.getInfo(descriptor);
-
-            // Return the schema from the FlightInfo
-            return info.getSchema();
-        } catch (Exception e) {
-            throw new RuntimeException("Failed to fetch schema for topic: " + topic, e);
-        }
-    }
 
     
     public static void printArrowStream(VectorSchemaRoot table){

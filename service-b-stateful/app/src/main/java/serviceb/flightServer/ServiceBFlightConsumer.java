@@ -4,15 +4,13 @@ import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptAppender;
 import net.openhft.chronicle.queue.impl.single.SingleChronicleQueueBuilder;
 
-import java.net.URI;
+
 import java.nio.charset.StandardCharsets;
-import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.ActionType;
 import org.apache.arrow.flight.Criteria;
-import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.flight.FlightDescriptor;
 import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.FlightProducer;
@@ -26,31 +24,23 @@ import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 
 public class ServiceBFlightConsumer{
-    public final SystemMetadata metadata;
     public final FlightServer flightServer;
-    private final FlightClient flightClient;
     private final BufferAllocator allocator;
     public  final AtomicBoolean isRunning;
     public final ChronicleQueue chronicleQueue;
     private final ThreadLocal<ExcerptAppender> appenderThreadLocal;
-    private final String serviceAaddress;
-    private final String serviceBAddress;
+;
 
 
     //Constructor
-    public ServiceBFlightConsumer(String serviceAaddress,String serviceBaddress,String chronicleQueuePath, int serviceBPort){
-        this.metadata=new SystemMetadata();
+    public ServiceBFlightConsumer(AtomicBoolean Run,String serviceAaddress,String serviceBaddress,String chronicleQueuePath, int serviceBPort){
         this.allocator=new RootAllocator(Long.MAX_VALUE);
-        this.chronicleQueue=SingleChronicleQueueBuilder.binary(chronicleQueuePath).build();
+        this.chronicleQueue=SingleChronicleQueueBuilder.single(chronicleQueuePath).build();
         this.appenderThreadLocal =ThreadLocal.withInitial(() -> chronicleQueue.createAppender());
-        this.serviceAaddress=serviceAaddress;
-        this.serviceBAddress=serviceBaddress;
-        this.isRunning=new AtomicBoolean(true);
+        this.isRunning=Run;
 
 
-        URI serviceAUri = URI.create(serviceAaddress);
-        Location serviceALocation=Location.forGrpcInsecure(serviceAUri.getHost(), serviceAUri.getPort());
-        this.flightClient = FlightClient.builder(allocator, serviceALocation).build();
+        
 
         try{
             this.flightServer=createFlightServer(serviceBPort);
@@ -129,49 +119,17 @@ public class ServiceBFlightConsumer{
         }
     }
 
-    //Subscripton function
-    public void SubscribeStreams(List<String> topics){
-        if (topics == null || topics.isEmpty()) {
-            System.out.println("No topics provided, returning");
-            return;
-        }
 
-        for(String topic:topics){
-            if(!metadata.contains(topic)){
-                StreamSubscribeUtils.subscribeToTopic(this.flightClient, this.serviceBAddress, topic);
-                this.metadata.add(topic);
-            }
-        }
-    }
 
-    //Unsubscription Function
-    public void UnsubscribeStreams(List<String> topics){
-        if (topics == null || topics.isEmpty()) {
-            System.out.println("No topics provided, returning");
-            return;
-        }
 
-        for(String topic:topics){
-            if( metadata.contains(topic)){
-                StreamSubscribeUtils.unsubscribeToTopic(this.flightClient, this.serviceBAddress, topic);
-                this.metadata.remove(topic);
-            }
-            
-        }
-    }
 
     //Shutdown
+    
     public void shutdown(){
         this.isRunning.set(false);
         System.out.println("\n===FLIGHT SERVER SHUTDOWN STARTING ===");
         try{
-            for(String topic:this.metadata.getSubscribedTopicsAsList()){
-                StreamSubscribeUtils.unsubscribeToTopic(flightClient, serviceBAddress, topic);
-            }
             flightServer.close();
-            if (flightClient != null) {
-                flightClient.close();
-            }
             if (chronicleQueue != null) {
                 chronicleQueue.close();
             }

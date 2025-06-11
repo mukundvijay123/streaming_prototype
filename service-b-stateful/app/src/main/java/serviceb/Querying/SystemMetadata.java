@@ -1,4 +1,4 @@
-package serviceb.flightServer;
+package serviceb.Querying;
 
 import java.util.ArrayList;
 import java.util.Set;
