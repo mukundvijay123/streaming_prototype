@@ -18,6 +18,7 @@ def queryDB(conn,queue_map:QueueMap):
             cursor.execute(query, (timeQuery,topic))
             event = cursor.fetch_arrow_table()  # ADBC supports Arrow format
             topic_metadata={"topic".encode():topic.encode()}
+            print(str(int(time())))
             topic_metadata["timestamp".encode()]=str(int((time()))).encode()
             event=event.replace_schema_metadata(topic_metadata)
             success=queue_map.putEvent(topic,event)

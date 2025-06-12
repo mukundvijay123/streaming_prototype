@@ -75,9 +75,6 @@ public class arrowIOUtils  {
                 ? ((Integer) value).longValue()
                 : (Long) value;
             return new Instant(epochSeconds * 1000L);
-        }else{
-            System.out.println(value);
-            System.out.println(value.getClass().getName());
         }
 
     return value;

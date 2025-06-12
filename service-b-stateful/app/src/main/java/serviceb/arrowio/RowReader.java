@@ -79,7 +79,9 @@ class RowReader  extends UnboundedReader<Row> {
             Map<String, String> schemaMetadata = arrowSchema.getCustomMetadata();
             String timestamp = schemaMetadata.get("timestamp");
             System.out.println(timestamp);
-            Instant eventTime = new Instant(Long.parseLong(timestamp));
+            //System.out.println(timestamp);
+            Instant eventTime = new Instant(Long.parseLong(timestamp)*1000);
+            System.out.println(eventTime);
             this.timeStamp = eventTime;
             
             if (this.timeStamp.isAfter(this.LatestTime)) {
@@ -118,7 +120,10 @@ class RowReader  extends UnboundedReader<Row> {
         if (currentRow == null) {
             throw new NoSuchElementException("No current row available");
         }
-        return arrowIOUtils.CustomRowBuilder(beamSchema, currentRow, eventtimeColumnName, this.timeStamp);
+        
+        Row row= arrowIOUtils.CustomRowBuilder(beamSchema, currentRow, eventtimeColumnName, this.timeStamp);
+        //System.out.println(row);
+        return row;
     }
 
 
