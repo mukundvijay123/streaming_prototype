@@ -2,13 +2,60 @@ import pyarrow as pa
 import pyarrow.flight as flight
 from utils import is_valid_grpc_address,extract_subscription
 from metadata import systemMetadata
+import adbc_driver_postgresql.dbapi as adbc
 
+
+DB_URI="postgresql://postgres:123456789@localhost:5432/arrow_kafka"
 
 class FlightServer(flight.FlightServerBase):
     def __init__(self,systemMetadata:systemMetadata,location="grpc://0.0.0.0:8815"):
         super().__init__(location)
         self._location=location
         self.systemMetadata=systemMetadata
+        self.adbcConn=adbc.connect(uri=DB_URI)
+
+    def __GetStreamSchema(self,topic):
+        cursor=self.adbcConn.cursor()
+        query=("SELECT ask_price FROM stock_prices_2 WHERE stock_symbol = $1 LIMIT 5;")
+        cursor.execute(query,(topic,))
+        data=cursor.fetch_arrow_table()
+        return data.schema
+
+
+    def get_flight_info(self, context, descriptor):
+        print("Handling get_flight_info for descriptor:", descriptor)
+        print(descriptor.descriptor_type)
+        if descriptor.descriptor_type == flight.DescriptorType.PATH:
+            topic = descriptor.path[0].decode()
+            schema = self.__GetStreamSchema(topic)
+
+            # Build FlightEndpoint with a dummy ticket and server address
+            ticket = flight.Ticket(topic.encode())
+            endpoint = flight.FlightEndpoint(ticket, [flight.Location.for_grpc_tcp("localhost", 8815)])
+
+            return flight.FlightInfo(
+                schema=schema,
+                descriptor=descriptor,
+                endpoints=[endpoint],
+                total_records=0,
+                total_bytes=0
+            )
+        raise flight.FlightServerError("Unsupported descriptor type or missing topic")
+    
+    
+    def get_schema(self, context, descriptor):
+        # Expecting the topic to be passed as a path descriptor
+        if descriptor.descriptor_type == flight.DescriptorType.PATH:
+            # Get topic from path
+            topic = descriptor.path[0]
+            
+            # Get the Arrow Schema from the source (e.g., PostgreSQL via ADBC)
+            schema = self.__GetStreamSchema(topic)
+            
+            # Return as a SchemaResult
+            return flight.SchemaResult(schema)
+        
+        raise flight.FlightServerError("Unsupported descriptor type or missing topic")
 
     
     def list_actions(self,context):
