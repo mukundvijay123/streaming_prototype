@@ -78,10 +78,10 @@ class RowReader  extends UnboundedReader<Row> {
             Schema arrowSchema = temp.getSchema();
             Map<String, String> schemaMetadata = arrowSchema.getCustomMetadata();
             String timestamp = schemaMetadata.get("timestamp");
-            System.out.println(timestamp);
+            //System.out.println(timestamp);
             //System.out.println(timestamp);
             Instant eventTime = new Instant(Long.parseLong(timestamp)*1000);
-            System.out.println(eventTime);
+            //System.out.println(eventTime);
             this.timeStamp = eventTime;
             
             if (this.timeStamp.isAfter(this.LatestTime)) {
