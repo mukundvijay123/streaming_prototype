@@ -31,7 +31,7 @@ class RowReader  extends UnboundedReader<Row> {
     private Schema arrowSchema;
     private org.apache.beam.sdk.schemas.Schema beamSchema;
     private Row currentRow;
-    private static final Integer maximumAllowedDelay=300;
+    private static final Integer maximumAllowedDelay=3;
 
     //what watermark to start from
     public RowReader(arrowIO source,Instant watermark){
@@ -78,6 +78,7 @@ class RowReader  extends UnboundedReader<Row> {
             Schema arrowSchema = temp.getSchema();
             Map<String, String> schemaMetadata = arrowSchema.getCustomMetadata();
             String timestamp = schemaMetadata.get("timestamp");
+            System.out.println(timestamp);
             Instant eventTime = new Instant(Long.parseLong(timestamp));
             this.timeStamp = eventTime;
             
@@ -117,19 +118,7 @@ class RowReader  extends UnboundedReader<Row> {
         if (currentRow == null) {
             throw new NoSuchElementException("No current row available");
         }
-        //adding event time in the pcollection row
-        Row.Builder builder = Row.withSchema(this.beamSchema);
-        for (int i = 0; i < this.beamSchema.getFieldCount(); i++) {
-            String fieldName = this.beamSchema.getField(i).getName();
-            if (!fieldName.equals(eventtimeColumnName)) {
-                builder.addValue(currentRow.getValue(fieldName));
-            }
-        }
-
-
-        builder.addValue(this.timeStamp);
-
-        return builder.build();
+        return arrowIOUtils.CustomRowBuilder(beamSchema, currentRow, eventtimeColumnName, this.timeStamp);
     }
 
 

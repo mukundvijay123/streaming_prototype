@@ -16,11 +16,33 @@ class FlightServer(flight.FlightServerBase):
 
     def __GetStreamSchema(self,topic):
         cursor=self.adbcConn.cursor()
-        query=("SELECT * FROM stock_prices_2 WHERE stock_symbol = $1;")
+        query=("SELECT ask_price FROM stock_prices_2 WHERE stock_symbol = $1 LIMIT 5;")
         cursor.execute(query,(topic,))
         data=cursor.fetch_arrow_table()
         return data.schema
 
+
+    def get_flight_info(self, context, descriptor):
+        print("Handling get_flight_info for descriptor:", descriptor)
+        print(descriptor.descriptor_type)
+        if descriptor.descriptor_type == flight.DescriptorType.PATH:
+            topic = descriptor.path[0].decode()
+            schema = self.__GetStreamSchema(topic)
+
+            # Build FlightEndpoint with a dummy ticket and server address
+            ticket = flight.Ticket(topic.encode())
+            endpoint = flight.FlightEndpoint(ticket, [flight.Location.for_grpc_tcp("localhost", 8815)])
+
+            return flight.FlightInfo(
+                schema=schema,
+                descriptor=descriptor,
+                endpoints=[endpoint],
+                total_records=0,
+                total_bytes=0
+            )
+        raise flight.FlightServerError("Unsupported descriptor type or missing topic")
+    
+    
     def get_schema(self, context, descriptor):
         # Expecting the topic to be passed as a path descriptor
         if descriptor.descriptor_type == flight.DescriptorType.PATH:

@@ -1,42 +1,44 @@
 package serviceb.flightServer.ChDequeue;
 
 import java.io.ByteArrayInputStream;
-import java.util.List;
-import java.util.Map;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 import org.apache.arrow.vector.VectorSchemaRoot;
 import org.apache.arrow.vector.ipc.ArrowStreamReader;
+import org.apache.arrow.vector.ipc.message.ArrowRecordBatch;
+import org.apache.arrow.vector.VectorUnloader;
+import org.apache.arrow.vector.VectorLoader;
 
 import net.openhft.chronicle.queue.ChronicleQueue;
 import net.openhft.chronicle.queue.ExcerptTailer;
+import serviceb.Querying.QueryMetadata;
+import serviceb.flightServer.FlightServerUtils;
 
-public class ChQDequeueWorker implements Runnable{
+
+//The old design was apparently leaking memory
+public class ChQDequeueWorker implements Runnable {
     private final ChronicleQueue chronicleQueue;
     private final BufferAllocator allocator;
     private final AtomicBoolean isRunning;
-    private final Map<String, List<BlockingQueue<QueueMessage>>> MetadataStore;//Temporary Queue Store Will be replaced later
-    private static final int OFFER_TIMEOUT_SECONDS = 1;
+    private final QueryMetadata metadataStore;
     private static final int SLEEP_INTERVAL_MS = 10;
 
-    public ChQDequeueWorker(ChronicleQueue chronicleQueue,
-                                       AtomicBoolean isRunning,
-                                       Map<String, List<BlockingQueue<QueueMessage>>> topicToQueues) {
-        this.chronicleQueue = chronicleQueue;
+    public ChQDequeueWorker(String chronicleQueuePath,
+                            AtomicBoolean isRunning,
+                            QueryMetadata metadataStore) {
+        this.chronicleQueue = ChronicleQueue.singleBuilder(chronicleQueuePath).build();
         this.allocator = new RootAllocator(Long.MAX_VALUE);
-        this.MetadataStore=topicToQueues;
-        this.isRunning=isRunning;
-
+        this.isRunning = isRunning;
+        this.metadataStore = metadataStore;
     }
 
     @Override
     public void run() {
         ExcerptTailer tailer = chronicleQueue.createTailer();
         System.out.println("Chronicle Queue dequeue thread started");
+
         try {
             while (isRunning.get()) {
                 try {
@@ -44,42 +46,32 @@ public class ChQDequeueWorker implements Runnable{
                         try {
                             byte[] arrowData = w.read("arrowData").bytes();
                             if (arrowData == null || arrowData.length == 0) {
-                                System.err.println("Received empty or null arrow data");
+                                System.err.println("Received empty or null Arrow data");
                                 return;
                             }
 
-                            try (ArrowStreamReader reader1 = new ArrowStreamReader(
+                            try (ArrowStreamReader reader = new ArrowStreamReader(
                                     new ByteArrayInputStream(arrowData), allocator)) {
-                                VectorSchemaRoot root1 = reader1.getVectorSchemaRoot();
-                                reader1.loadNextBatch(); // Required to populate root1
-                                String topic = root1.getSchema().getCustomMetadata().get("topic");
 
-                                QueueMessage message = new QueueMessage(topic, root1);
-                                List<BlockingQueue<QueueMessage>> targetQueues = MetadataStore.get(topic);
-                                if (targetQueues != null && !targetQueues.isEmpty()) {
-                                    int successfulOffers = 0;
-                                    for (BlockingQueue<QueueMessage> queue : targetQueues) {
-                                        try {
-                                            boolean offered = queue.offer(message, OFFER_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-                                            if (offered) {
-                                                successfulOffers++;
-                                            } else {
-                                                System.err.println("Queue full for topic: " + topic);
-                                            }
-                                        } catch (InterruptedException e) {
-                                            Thread.currentThread().interrupt();
-                                            System.err.println("Interrupted while offering message to queue: " + topic);
-                                            return;
-                                        }
-                                    }
-                                    System.out.println("Distributed message for topic '" + topic +
-                                            "' to " + successfulOffers + "/" + targetQueues.size() + " queues");
+                                VectorSchemaRoot root = reader.getVectorSchemaRoot();
+                                if (reader.loadNextBatch()) {
+                                    String topic = root.getSchema()
+                                            .getCustomMetadata()
+                                            .getOrDefault("topic", "");
+                                    //System.out.println(topic);
+                                    // Clone the root
+                                    VectorSchemaRoot clonedRoot = cloneRoot(root, allocator);
+                                    //System.out.println(clonedRoot);
+                                    //FlightServerUtils.printArrowTableConcise(clonedRoot);
+                                    // Queue the clone
+                                    metadataStore.supplyData(topic, clonedRoot);
                                 } else {
-                                    System.err.println("No queues found for topic: " + topic);
+                                    System.err.println("Arrow stream had no data batch");
                                 }
                             }
                         } catch (Exception e) {
-                            System.err.println("Error processing message: " + e.getMessage());
+                            System.err.println("Error processing message:");
+                            e.printStackTrace();
                         }
                     });
 
@@ -91,27 +83,39 @@ public class ChQDequeueWorker implements Runnable{
                     System.out.println("Dequeue thread interrupted, shutting down gracefully");
                     break;
                 } catch (Exception e) {
-                    System.err.println("Unexpected error in dequeue thread: " + e.getMessage());
+                    System.err.println("Unexpected error in dequeue thread:");
                     e.printStackTrace();
-                    break; // Optional: Break on fatal errors
+                    break;
                 }
             }
         } finally {
             try {
                 tailer.close();
             } catch (Exception e) {
-                System.err.println("Error closing tailer: " + e.getMessage());
+                System.err.println("Error closing tailer:");
+                e.printStackTrace();
             }
 
             try {
                 allocator.close();
             } catch (Exception e) {
-                System.err.println("Error closing allocator: " + e.getMessage());
+                System.err.println("Error closing allocator:");
+                e.printStackTrace();
             }
 
             System.out.println("Chronicle Queue dequeue thread stopped");
         }
-    }  
+    }
 
+    private VectorSchemaRoot cloneRoot(VectorSchemaRoot original, BufferAllocator allocator) {
+        VectorUnloader unloader = new VectorUnloader(original);
+        ArrowRecordBatch recordBatch = unloader.getRecordBatch();
 
+        VectorSchemaRoot newRoot = VectorSchemaRoot.create(original.getSchema(), allocator);
+        VectorLoader loader = new VectorLoader(newRoot);
+        loader.load(recordBatch);
+
+        recordBatch.close(); // release resources
+        return newRoot;
+    }
 }

@@ -33,7 +33,7 @@ public class ServiceBFlightConsumer{
 
 
     //Constructor
-    public ServiceBFlightConsumer(AtomicBoolean Run,String serviceAaddress,String serviceBaddress,String chronicleQueuePath, int serviceBPort){
+    public ServiceBFlightConsumer(AtomicBoolean Run,String chronicleQueuePath, int serviceBPort){
         this.allocator=new RootAllocator(Long.MAX_VALUE);
         this.chronicleQueue=SingleChronicleQueueBuilder.single(chronicleQueuePath).build();
         this.appenderThreadLocal =ThreadLocal.withInitial(() -> chronicleQueue.createAppender());
@@ -67,7 +67,7 @@ public class ServiceBFlightConsumer{
             @Override
             public Runnable acceptPut(CallContext context, FlightStream flightStream,
                     StreamListener<PutResult> ackStream) {
-                System.out.println("acceptPut called for context: " + context);
+                //System.out.println("acceptPut called for context: " + context);
                 return () -> QueueAppender.handleIncomingData(appenderThreadLocal.get(), flightStream, ackStream);
             }
             @Override

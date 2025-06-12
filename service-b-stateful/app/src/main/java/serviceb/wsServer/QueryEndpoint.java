@@ -6,18 +6,34 @@ import jakarta.websocket.OnError;
 import jakarta.websocket.OnMessage;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
+import serviceb.Querying.QueryMetadata;
+
+import java.io.IOException;
 import java.io.StringReader;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
 import jakarta.json.JsonReader;
+import jakarta.json.JsonString;
 
 @ServerEndpoint("/queryEndpoint")
 public class QueryEndpoint {
     private String sessionName = null;
+    private static QueryMetadata queryMetadata;
+    private String querySessionName;
+
+    public static void setQueryMetadata(QueryMetadata metadata){
+        queryMetadata=metadata;
+    } 
 
     @OnOpen
     public void onOpen(Session session) {
-        System.out.println("[WebSocket] Connection opened: " + session.getId());
+        this.sessionName=session.getId();
+        System.out.println("[WebSocket] Connection opened: " + sessionName);
     }
 
     @OnMessage
@@ -29,20 +45,33 @@ public class QueryEndpoint {
             String action = jsonMessage.getString("action", null);
             System.out.println("Action: " + action);
 
-            if(action=="start_query_session"){
-
-            }else if(action=="delete_quert_session"){
-
-            }else{
+            if(action.equals("start_query_session")){
+                String QueryString=jsonMessage.getString("query_string");
                 
-            }
+                Set<String> topicSet = jsonMessage.getJsonArray("topics")
+                    .getValuesAs(JsonString.class)
+                    .stream()
+                    .map(JsonString::getString)
+                    .collect(Collectors.toSet());
+                List<String>topics=new ArrayList<>(topicSet);
+                try{
+                    this.querySessionName=QueryEndpoint.queryMetadata.createQuerySession(QueryString, topics, session);
+                }catch(Exception e){
+                    System.err.println("Unable to create query session: "+e.getMessage());
+                    e.printStackTrace();
+                    //session.close();
+                }
 
-            //If action is createQuery execute action
-
-            //If action is delete session Delete it here
-
-
-            
+            }else if(action.equals("close")){
+                try{
+                    QueryEndpoint.queryMetadata.deleteQuerySession(this.querySessionName);
+                }catch(Exception e){
+                    System.err.println("Unable to close query session: "+e.getMessage());
+                    session.close();
+                }
+            }else{
+                session.getAsyncRemote().sendText("Invalid input");
+            }   
 
         } catch (Exception e) {
             System.err.println("[WebSocket] Error: " + e.getMessage());
@@ -52,10 +81,18 @@ public class QueryEndpoint {
     @OnClose
     public void onClose(Session session) {
         System.out.println("[WebSocket] Connection closed: " + session.getId());
+        
     }
 
     @OnError
     public void onError(Session session, Throwable throwable) {
         System.err.println("[WebSocket] Error on session " + session.getId() + ": " + throwable.getMessage());
+        if (session.isOpen()) {
+            try {
+                session.close();
+            } catch (IOException e) {
+                System.err.println("Error closing session: " + e.getMessage());
+            }
+        }
     }
 }

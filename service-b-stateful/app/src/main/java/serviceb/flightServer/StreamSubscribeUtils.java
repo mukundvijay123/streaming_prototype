@@ -26,7 +26,7 @@ public class StreamSubscribeUtils {
         try {
             // Get FlightInfo from the server using the descriptor
             FlightInfo info = client.getInfo(descriptor);
-
+            //System.out.println(info);
             // Return the schema from the FlightInfo
             return info.getSchema();
         } catch (Exception e) {

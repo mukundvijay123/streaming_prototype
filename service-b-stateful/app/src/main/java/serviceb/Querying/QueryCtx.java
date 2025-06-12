@@ -3,7 +3,8 @@
 
     import java.io.IOException;
     import java.util.ArrayList;
-    import java.util.List;
+import java.util.HashMap;
+import java.util.List;
     import java.util.Map;
     import java.util.Objects;
     import java.util.concurrent.BlockingQueue;
@@ -52,6 +53,7 @@
             this.QueryName=QueryName;
             this.Topics=Topics;
             this.QueueMap=new ConcurrentHashMap<>();
+            this.InputQueryCollections=new HashMap<>();
             this.QueryString=QueryString;
             this.QueryPipeline=CreatePipeline();
             this.websocketConnection=wsConn;

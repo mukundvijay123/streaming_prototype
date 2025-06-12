@@ -20,7 +20,7 @@ public class QueueAppender {
 
         try{
             VectorSchemaRoot root =flightStream.getRoot();
-            System.out.println("===ARROW STREAM===");
+           // System.out.println("===ARROW STREAM===");
             //FlightServerUtils.printArrowStream(root);
             Schema schema =root.getSchema();
             int batchCount=0;
@@ -33,7 +33,7 @@ public class QueueAppender {
             }
             ackStream.onNext(PutResult.empty());
             ackStream.onCompleted();
-            System.out.println("===STREAM END===");
+            //System.out.println("===STREAM END===");
             
         }catch(Exception e){
             System.err.println("Error while processing stream"+ e.getMessage());
