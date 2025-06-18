@@ -37,7 +37,10 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
     db_user = result.scalar_one_or_none()
     if not db_user or not verify_password(user.password, db_user.hashed_password):
         raise HTTPException(status_code=400, detail="Invalid credentials")
-    token = create_access_token({"sub": str(db_user.id)})
+    token = create_access_token({
+        "sub": str(db_user.id),
+        "role": db_user.role
+    })  
     return {"access_token": token, "token_type": "bearer"}
 
 
