@@ -174,7 +174,7 @@
     disconnectBtn.addEventListener('click', () => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         if (queryActive) {
-          socket.send(JSON.stringify({ action: 'close' }));
+          socket.send(JSON.stringify({ action: 'close_query_session' }));
         }
         socket.close();
       }
