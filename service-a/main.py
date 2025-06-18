@@ -37,7 +37,6 @@ def main():
         print("[Start] Launching Java HTTP server...")
         java_process = subprocess.Popen(
             ["java", "-jar", JAR_PATH],
-            stdout=logfile,
             stderr=subprocess.STDOUT
         )
 

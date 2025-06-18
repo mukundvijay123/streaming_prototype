@@ -5,7 +5,7 @@ from metadata import systemMetadata
 import adbc_driver_postgresql.dbapi as adbc
 
 
-DB_URI="postgresql://postgres:123456789@localhost:5432/arrow_kafka"
+DB_URI="postgresql://postgres:postgres@localhost:5432/multidb"
 
 class FlightServer(flight.FlightServerBase):
     def __init__(self,systemMetadata:systemMetadata,location="grpc://0.0.0.0:8815"):
@@ -16,7 +16,7 @@ class FlightServer(flight.FlightServerBase):
 
     def __GetStreamSchema(self,topic):
         cursor=self.adbcConn.cursor()
-        query=("SELECT ask_price FROM stock_prices_2 WHERE stock_symbol = $1 LIMIT 5;")
+        query=("SELECT * FROM stock_prices_4 WHERE stock_symbol = $1 LIMIT 5;")
         cursor.execute(query,(topic,))
         data=cursor.fetch_arrow_table()
         return data.schema

@@ -27,8 +27,8 @@ public class arrowOutputTransform extends DoFn<Row, Row> {
 
         // convert Row to String (you can swap toJsonString or toCsvString if you like)
         String rowText = row.toString();
-        
 
+        System.out.println("this is good 1");
         // wrap in your outputMessage
         outputMessage msg = new outputMessage(querySession, rowText);
 

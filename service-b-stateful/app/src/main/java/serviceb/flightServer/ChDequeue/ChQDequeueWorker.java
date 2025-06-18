@@ -62,7 +62,7 @@ public class ChQDequeueWorker implements Runnable {
                                     // Clone the root
                                     VectorSchemaRoot clonedRoot = cloneRoot(root, allocator);
                                     //System.out.println(clonedRoot);
-                                    //FlightServerUtils.printArrowTableConcise(clonedRoot);
+                              //      FlightServerUtils.printArrowTableConcise(clonedRoot);
                                     // Queue the clone
                                     metadataStore.supplyData(topic, clonedRoot);
                                 } else {

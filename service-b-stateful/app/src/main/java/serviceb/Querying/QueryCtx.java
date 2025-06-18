@@ -111,9 +111,11 @@ import java.util.List;
 
         public void startQuery(){
             try{
-                CreatePipeline();
-                CreateQueueMap();
-                createPcollectionsTuple();
+                System.out.println("create1");
+                CreatePipeline(); System.out.println("create2");
+
+                CreateQueueMap(); System.out.println("create3");
+                createPcollectionsTuple(); System.out.println("create4");
                 applySql();
                 this.pipelineResult=this.QueryPipeline.run();
             }catch(Exception e){
