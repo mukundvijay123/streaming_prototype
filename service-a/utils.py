@@ -1,6 +1,8 @@
 import json 
 import re
 import requests
+import httpx
+import asyncio
 from metadata import systemMetadata
 from queueMap import QueueMap
 def extract_subscription(action):
@@ -54,3 +56,21 @@ def add_topic_to_system(topic_name:str,schema:str,javaServerAddr:str,system_meta
             print(f"Failed to add topic '{topic_name}': {response.json().get('error', 'Unknown error')}")
     except Exception as e:
         print(f"Error while communicating with Java server: {e}")
+
+
+async def check_access_async(base_url, token, topic, action) -> bool:
+    url = f"{base_url}/authorize"
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    params = {
+        "topic": topic,
+        "action": action
+    }
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, headers=headers, params=params)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Error checking access: {e}")
+            return False

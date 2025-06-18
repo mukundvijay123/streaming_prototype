@@ -1,8 +1,13 @@
 package serviceb.flightServer;
 
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 
 import org.apache.arrow.flight.Action;
 import org.apache.arrow.flight.FlightClient;
@@ -74,5 +79,23 @@ public class StreamSubscribeUtils {
         e.printStackTrace();
     }
 
+    }
+
+
+    public static CompletableFuture<Boolean> checkAccessAsync(String baseUrl, String token, String topic, String action) {
+        HttpClient client = HttpClient.newHttpClient();
+        String url = String.format("%s/authorize?topic=%s&action=%s", baseUrl, topic, action);
+        HttpRequest request = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .header("Authorization", "Bearer " + token)
+            .GET()
+            .build();
+
+        return client.sendAsync(request, HttpResponse.BodyHandlers.discarding())
+            .thenApply(response -> response.statusCode() == 200)
+            .exceptionally(e -> {
+                System.out.println("Error checking access: " + e.getMessage());
+                return false;
+            });
     }
 }
