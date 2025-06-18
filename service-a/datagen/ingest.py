@@ -48,9 +48,9 @@ cursor = conn.cursor()
 
 # Create table if it doesn't exist
 cursor.execute("""
-    CREATE TABLE IF NOT EXISTS stock_prices_2 (
+    CREATE TABLE IF NOT EXISTS stock_prices_4 (
         id SERIAL PRIMARY KEY,
-        timestamp TIMESTAMP NOT NULL,
+        timestamp TIMESTAMPZ NOT NULL,
         stock_symbol VARCHAR(10) NOT NULL,
         price NUMERIC(10, 2) NOT NULL,
         volume INTEGER NOT NULL,

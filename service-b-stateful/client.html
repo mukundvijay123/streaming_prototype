@@ -101,7 +101,7 @@
   <div id="data-container"></div>
 
   <script>
-    const WS_URL = "ws://localhost:8765/ws/queryEndpoint"; // QueryEndpoint backend
+    const WS_URL = "ws://localhost:8767/ws/queryEndpoint"; // QueryEndpoint backend
     let socket = null;
     let queryActive = false;
 
@@ -178,7 +178,7 @@
     disconnectBtn.addEventListener('click', () => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         if (queryActive) {
-          socket.send(JSON.stringify({ action: 'close' }));
+          socket.send(JSON.stringify({ action: 'close_query_session' }));
         }
         socket.close();
       }

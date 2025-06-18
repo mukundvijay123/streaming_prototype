@@ -28,7 +28,7 @@ public class App {
             QueryMetadata metadata = new QueryMetadata(allocator, myAddress, brokerAddress);
 
             ServiceBFlightConsumer flightServer = new ServiceBFlightConsumer(running, chronicleQueuePath, 8818);
-            WebsocketServer websocketServer = new WebsocketServer(metadata);
+            WebsocketServer websocketServer = new WebsocketServer("localhost",8767,metadata);
             ChQDequeueWorker dequeueWorker = new ChQDequeueWorker(chronicleQueuePath, running, metadata);
             QueryResultBroadcasterWorker resultBroadcasterWorker = new QueryResultBroadcasterWorker(metadata);
 
