@@ -56,7 +56,7 @@ if __name__=="__main__":
 
     websocket_process = multiprocessing.Process(
         target=start_websocket_server,
-        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2, HEADER_SIZE, BUFFER_SIZE, "0.0.0.0", 8765),
+        args=(shm.name, lock, write_index, read_index, data_section_start, write_data_idx, read_data_idx, event, event2, HEADER_SIZE, BUFFER_SIZE, "0.0.0.0", 8766),
         daemon=True
     )
     websocket_process.start()

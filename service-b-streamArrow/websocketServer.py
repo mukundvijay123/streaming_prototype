@@ -99,7 +99,7 @@ async def websocket_handler(websocket: WebSocket):
                 query_plan =await fetchSubstraitPlan(query_string,query_server_address)
                 if query_string :
                     sessionName=system_metadata.createQuerySession(query_string,websocket,False,query_plan)
-            elif action=="close":
+            elif action=="close_query_session":
                 system_metadata.deleteQuerySession(sessionName)
                 sessionName=None
 
