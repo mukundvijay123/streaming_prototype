@@ -1,0 +1,7 @@
+{
+    "maxSegmentSize": 10485760,
+    "maxMessageSize": 1048576,
+    "topicNames": ["XYZ","ABC","LMN"],
+    "NoOfWriteThreads":3,
+    "dataPath":"partitions"
+}
