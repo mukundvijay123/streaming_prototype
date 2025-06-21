@@ -3,8 +3,8 @@
 
     import java.io.IOException;
     import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+    import java.util.HashMap;
+    import java.util.List;
     import java.util.Map;
     import java.util.Objects;
     import java.util.concurrent.BlockingQueue;
@@ -33,8 +33,10 @@ import java.util.List;
     import serviceb.arrowio.arrowIO;
     import serviceb.arrowio.arrowIOUtils;
     import serviceb.arrowio.arrowOutputTransform;
+    import serviceb.utils.context;
 
     public class QueryCtx {
+        private final  context authctx;
         private static final int pollInterval=10;//10 milliseconds
         public final String QueryName;
         private final String QueryString;
@@ -49,7 +51,8 @@ import java.util.List;
 
 
 
-        public QueryCtx(String QueryName,String QueryString,Map<String,Schema> Topics,Session wsConn){
+        public QueryCtx(String QueryName,String QueryString,Map<String,Schema> Topics,Session wsConn,context ctx){
+            this.authctx=ctx;
             this.QueryName=QueryName;
             this.Topics=Topics;
             this.QueueMap=new ConcurrentHashMap<>();
@@ -94,7 +97,7 @@ import java.util.List;
             if(InputQueryCollections.size()>1){
                 int numTopics =topics.size();
                 for(int i=0;i<numTopics;i++){
-                    this.   QueryTuple=this.QueryTuple.and(new TupleTag<>(topics.get(i)),this.InputQueryCollections.get(topics.get(i)));
+                    this.QueryTuple=this.QueryTuple.and(new TupleTag<>(topics.get(i)),this.InputQueryCollections.get(topics.get(i)));
                 }
             }
             

@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Streaming SQL Client</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #header h1 {
+      margin: 0;
+    }
+    #connection-controls {
+      display: flex;
+      gap: 10px;
+    }
+    #controls {
+      margin-bottom: 10px;
+      display: grid;
+      grid-template-columns: 1fr auto auto auto;
+      gap: 10px;
+      align-items: center;
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      font-family: monospace;
+      padding: 5px;
+    }
+    #queryString {
+      grid-column: 1 / span 4;
+      height: 150px;
+    }
+    #data-container {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 300px;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+      white-space: pre-wrap;
+    }
+    .data-item {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+      word-break: break-word;
+    }
+    button {
+      padding: 5px 10px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button.disconnect-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+    }
+    button.disconnect-btn:hover {
+      background-color: #d32f2f;
+    }
+    #status {
+      font-style: italic;
+    }
+    #error {
+      color: red;
+      margin-top: 10px;
+    }
+    .full-row {
+      grid-column: 1 / span 4;
+    }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>Streaming SQL Client</h1>
+    <div id="connection-controls">
+      <button id="connect-btn">Connect</button>
+      <button id="disconnect-btn" class="disconnect-btn" disabled>Disconnect</button>
+    </div>
+  </div>
+
+  <div id="controls">
+    <input type="text" id="topics" placeholder="Stream topics (comma-separated)" class="full-row"/>
+    <label for="queryString" class="full-row">SQL Query:</label>
+    <textarea id="queryString" placeholder="Enter multi-line SQL query here…" class="full-row"></textarea>
+
+    <button id="start-query-btn" disabled>Start Query</button>
+    <button id="close-query-btn" disabled>Close Query</button>
+    <span id="status"></span>
+    <div id="error" class="full-row"></div>
+  </div>
+
+  <div id="data-container"></div>
+
+  <script>
+    const WS_URL = "ws://localhost:8767/ws/queryEndpoint"; // QueryEndpoint backend
+    let socket = null;
+    let queryActive = false;
+
+    const connectBtn       = document.getElementById('connect-btn');
+    const disconnectBtn    = document.getElementById('disconnect-btn');
+    const startQueryBtn    = document.getElementById('start-query-btn');
+    const closeQueryBtn    = document.getElementById('close-query-btn');
+    const statusSpan       = document.getElementById('status');
+    const errorDiv         = document.getElementById('error');
+    const dataContainer    = document.getElementById('data-container');
+    const queryInput       = document.getElementById('queryString');
+    const topicsInput      = document.getElementById('topics');
+
+    function setStatus(msg) {
+      statusSpan.textContent = msg;
+    }
+
+    function appendData(text) {
+      const item = document.createElement('div');
+      item.className = 'data-item';
+      item.textContent = text;
+      dataContainer.appendChild(item);
+      dataContainer.scrollTop = dataContainer.scrollHeight;
+    }
+
+    function clearAll() {
+      dataContainer.innerHTML = '';
+      errorDiv.textContent = '';
+      setStatus('');
+    }
+
+    function setConnectedState(connected) {
+      connectBtn.disabled = connected;
+      disconnectBtn.disabled = !connected;
+      startQueryBtn.disabled = !connected || queryActive;
+      closeQueryBtn.disabled = !connected || !queryActive;
+    }
+
+    // Helper to get JWT token
+    function getToken() {
+      return localStorage.getItem('token');
+    }
+
+    window.onerror = function(msg, src, line, col, err) {
+      errorDiv.textContent = `Error: ${msg} (${src}:${line})`;
+      return true;
+    };
+
+    connectBtn.addEventListener('click', () => {
+      if (socket && socket.readyState === WebSocket.OPEN) return;
+
+      clearAll();
+      setStatus('Connecting…');
+
+      socket = new WebSocket(WS_URL);
+
+      socket.onopen = () => {
+        setStatus('Connected');
+        setConnectedState(true);
+      };
+
+      socket.onmessage = evt => {
+        appendData(evt.data);
+      };
+
+      socket.onerror = err => {
+        console.error('WebSocket error', err);
+        setStatus('WebSocket error');
+        errorDiv.textContent = 'WebSocket error occurred.';
+      };
+
+      socket.onclose = () => {
+        setStatus('Disconnected');
+        queryActive = false;
+        setConnectedState(false);
+      };
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        if (queryActive) {
+          socket.send(JSON.stringify({ action: 'close_query_session' }));
+        }
+        socket.close();
+      }
+    });
+
+    startQueryBtn.addEventListener('click', () => {
+      if (!socket || socket.readyState !== WebSocket.OPEN) return;
+
+      errorDiv.textContent = '';
+      const queryString = queryInput.value.trim();
+      const topics = topicsInput.value.trim();
+      const token = getToken();
+
+      if (!queryString || !topics) {
+        errorDiv.textContent = 'Both SQL query and topics are required.';
+        return;
+      }
+
+      if (!token) {
+        errorDiv.textContent = 'Authentication token missing. Please login.';
+        return;
+      }
+
+      const msg = {
+        action: 'start_query_session',
+        query_string: queryString,
+        topics: topics.split(',').map(t => t.trim()).filter(t => t),
+        token: token
+      };
+
+      socket.send(JSON.stringify(msg));
+      setStatus('Query started');
+      queryActive = true;
+      setConnectedState(true);
+    });
+
+    closeQueryBtn.addEventListener('click', () => {
+      if (!socket || socket.readyState !== WebSocket.OPEN || !queryActive) return;
+      const token = getToken();
+      if (!token) {
+        errorDiv.textContent = 'Authentication token missing. Please login.';
+        return;
+      }
+
+
+      socket.send(JSON.stringify({
+        action: 'close',
+        token: token // <- Include token here
+      }));
+      
+      setStatus('Query closed');
+      queryActive = false;
+      setConnectedState(true);
+    });
+  </script>
+</body>
+</html>

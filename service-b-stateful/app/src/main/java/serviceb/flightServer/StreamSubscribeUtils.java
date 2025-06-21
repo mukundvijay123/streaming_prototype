@@ -41,24 +41,31 @@ public class StreamSubscribeUtils {
 
 
 
-    public static void subscribeToTopic(FlightClient flightClient,String ConsumerAddr,String topic){
-        try{
-            if(topic==null){
+    public static void subscribeToTopic(FlightClient flightClient, String consumerAddr, String topic, String token) {
+        try {
+            if (topic == null) {
                 return;
             }
-            String payload =String.format("{\"address\": \"%s\", \"topic\": \"%s\"}",ConsumerAddr,topic);
-            Action action=new Action("subscribe",payload.getBytes(StandardCharsets.UTF_8));
+
+            // Construct JSON with nested auth.token
+            String payload = String.format(
+                "{ \"address\": \"%s\", \"topic\": \"%s\", \"auth\": { \"token\": \"%s\" } }",
+                consumerAddr, topic, token
+            );
+
+            Action action = new Action("subscribe", payload.getBytes(StandardCharsets.UTF_8));
             Iterator<Result> results = flightClient.doAction(action);
-            while(results.hasNext()){
+
+            while (results.hasNext()) {
                 Result result = results.next();
                 String response = new String(result.getBody(), StandardCharsets.UTF_8);
                 System.out.println("Subscription response for topic " + topic + ": " + response);
             }
-        }catch(Exception e){
+
+        } catch (Exception e) {
             System.err.println("Error subscribing to topic " + topic + ": " + e.getMessage());
             e.printStackTrace();
         }
-
     }
 
     public static void unsubscribeToTopic(FlightClient flightClient,String ConsumerAddr,String topic){
