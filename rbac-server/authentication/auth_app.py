@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from db import engine, get_db
-from models import User,Base
-from schemas import UserCreate, UserLogin, UserRead
-from authentication.auth import hash_password, verify_password, create_access_token
-from deps import get_current_user
+from .db import engine, get_db
+from .models import User,Base
+from .schemas import UserCreate, UserLogin, UserRead
+from .auth import hash_password, verify_password, create_access_token
+from .deps import get_current_user
 from sqlalchemy.future import select
 
 
@@ -23,8 +23,7 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     db_user = User(
         email=user.email,
         hashed_password=hash_password(user.password),
-        full_name=user.full_name,
-        role=user.role
+        full_name=user.full_name
     )
     db.add(db_user)
     await db.commit()
@@ -39,7 +38,7 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid credentials")
     token = create_access_token({
         "sub": str(db_user.id),
-        "role": db_user.role
+        "role": db_user.full_name  
     })  
     return {"access_token": token, "token_type": "bearer"}
 

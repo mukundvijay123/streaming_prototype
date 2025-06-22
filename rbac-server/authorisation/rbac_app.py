@@ -1,22 +1,24 @@
 import casbin
-from fastapi import APIRouter, Depends, HTTPException, status,Query
+from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from typing import Optional
 from pydantic import BaseModel
-from our_secrets import SECRET_KEY,ALGORITHM,ACCESS_TOKEN_EXPIRE_MINUTES
+from our_secrets import SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES
 
-
-enforcer = casbin.Enforcer("authorisation\model.conf", "authorisation\policy.csv")
+# Initialize Casbin enforcer with model and policy file
+enforcer = casbin.Enforcer("authorisation/model.conf", "authorisation/policy.csv")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-rbac_app=APIRouter()
+rbac_app = APIRouter()
 
 
 class TokenUser(BaseModel):
     sub: str
     role: str
 
+
+# Decode JWT and extract user info
 def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenUser:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
@@ -25,14 +27,14 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenUser:
 
         if not user_id or not role:
             raise HTTPException(status_code=401, detail="Invalid token")
-        
+
         return TokenUser(sub=user_id, role=role)
 
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
-    
 
 
+# Authorization check endpoint
 @rbac_app.get("/authorize")
 def authorize_access(
     topic: str = Query(),
@@ -40,12 +42,13 @@ def authorize_access(
     current_user: TokenUser = Depends(get_current_user)
 ):
     role = current_user.role
-    obj = topic  # The resource, e.g., a Kafka stream or similar
-    act = action  # The action the user wants to perform
-
+    obj = topic
+    act = action
+    #
+    enforcer.load_policy()
     if enforcer.enforce(role, obj, act):
         return {
-            "message": f"Access granted",
+            "message": "Access granted",
             "role": role,
             "topic": topic,
             "action": action
@@ -53,7 +56,13 @@ def authorize_access(
     else:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail=f" Access denied for role '{role}' on topic '{topic}' with action '{action}'"
+            detail=f"Access denied for role '{role}' on topic '{topic}' with action '{action}'"
         )
 
 
+# 🔁 Reload Casbin policy at runtime
+@rbac_app.post("/reload-policy")
+def reload_policy(current_user: TokenUser = Depends(get_current_user)):
+        print("🔄 Reloading Casbin policy...")
+        
+        

@@ -1,1 +1,25 @@
-p, *, *, *
+p, customerAX, ABC, statelessRead
+p, customerAX, XYZ, statelessRead
+
+p, customerA, ABC, statefulRead
+p, customerA, ABC, statelessRead
+
+p, customerAL, ABC, statelessRead
+p, customerAL, LMN, statelessRead
+
+p, customerALX, ABC, statefulRead
+p, customerALX, LMN, statefulRead
+p, customerALX, XYZ, statefulRead
+
+p, customerALX, ABC, statelessRead
+p, customerALX, LMN, statelessRead
+p, customerALX, XYZ, statelessRead
+
+
+g, alice, customerA
+g, bob, customerAL
+g, charlie, customerALX
+g, dave, customerAX
+g, eve, customerALX
+g, frank, customerALX
+g, grace, customerA
