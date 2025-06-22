@@ -35,6 +35,7 @@ import java.util.List;
     import serviceb.arrowio.arrowOutputTransform;
 
     public class QueryCtx {
+        private Thread queryThread;
         private static final int pollInterval=10;//10 milliseconds
         public final String QueryName;
         private final String QueryString;
@@ -115,14 +116,45 @@ import java.util.List;
                 CreateQueueMap();
                 createPcollectionsTuple();
                 applySql();
+                System.out.println("before:"+QueryName);
                 this.pipelineResult=this.QueryPipeline.run();
+                System.out.println("after"+QueryName);
             }catch(Exception e){
                 e.printStackTrace();
             }
         }
+            public void startQueryAsync() {
+            this.queryThread = new Thread(() -> {
+                try {
+                    CreateQueueMap();
+                    createPcollectionsTuple();
+                    applySql();
+                    System.out.println("before:" + QueryName);
+                    this.pipelineResult = this.QueryPipeline.run();
+                    System.out.println("after:" + QueryName);
 
-        public void stopQuery()throws IOException{
-            this.pipelineResult.cancel();
+                    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, "Query-" + QueryName);
+            this.queryThread.setDaemon(true);
+            this.queryThread.start();
+        }
+
+
+        
+
+        
+        public void stopQuery() throws IOException {
+            if (this.pipelineResult != null) {
+                this.pipelineResult.cancel();
+            }
+            if (queryThread != null && queryThread.isAlive()) {
+                try {
+                    queryThread.join(1000); // optional: wait 1s for cleanup
+                } catch (InterruptedException ignored) {}
+            }
         }
 
         public void supplyData(String topic,VectorSchemaRoot event)throws Exception{

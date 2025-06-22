@@ -62,7 +62,7 @@ public class QueryEndpoint {
                     //session.close();
                 }
 
-            }else if(action.equals("close")){
+            }else if(action.equals("close_query_session")){
                 try{
                     QueryEndpoint.queryMetadata.deleteQuerySession(this.querySessionName);
                 }catch(Exception e){
@@ -80,6 +80,13 @@ public class QueryEndpoint {
 
     @OnClose
     public void onClose(Session session) {
+        if(this.querySessionName!=null)
+        try{
+          
+        queryMetadata.deleteQuerySession(this.querySessionName);  
+        }catch(Exception e){
+            System.out.println(e.getMessage());
+        }
         System.out.println("[WebSocket] Connection closed: " + session.getId());
         
     }

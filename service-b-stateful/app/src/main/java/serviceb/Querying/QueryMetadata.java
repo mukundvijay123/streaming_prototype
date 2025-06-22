@@ -152,7 +152,7 @@ public class QueryMetadata {
         }finally{
             this.writeLock.unlock();
         }
-        context.startQuery();
+        context.startQueryAsync();
         return queryName;
     }
 

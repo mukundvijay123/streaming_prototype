@@ -178,7 +178,7 @@
     disconnectBtn.addEventListener('click', () => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         if (queryActive) {
-          socket.send(JSON.stringify({ action: 'close_query_session' }));
+          socket.send(JSON.stringify({ action: 'close' }));
         }
         socket.close();
       }
@@ -211,7 +211,7 @@
     closeQueryBtn.addEventListener('click', () => {
       if (!socket || socket.readyState !== WebSocket.OPEN || !queryActive) return;
 
-      socket.send(JSON.stringify({ action: 'close' }));
+      socket.send(JSON.stringify({ action: 'close_query_session' }));
       setStatus('Query closed');
       queryActive = false;
       setConnectedState(true);
