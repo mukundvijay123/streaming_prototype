@@ -36,7 +36,6 @@
     import serviceb.utils.context;
 
     public class QueryCtx {
-        private final  context authctx;
         private static final int pollInterval=10;//10 milliseconds
         public final String QueryName;
         private final String QueryString;
@@ -51,8 +50,7 @@
 
 
 
-        public QueryCtx(String QueryName,String QueryString,Map<String,Schema> Topics,Session wsConn,context ctx){
-            this.authctx=ctx;
+        public QueryCtx(String QueryName,String QueryString,Map<String,Schema> Topics,Session wsConn){
             this.QueryName=QueryName;
             this.Topics=Topics;
             this.QueueMap=new ConcurrentHashMap<>();

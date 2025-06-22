@@ -16,6 +16,8 @@ import org.apache.arrow.flight.FlightInfo;
 import org.apache.arrow.flight.Result;
 import org.apache.arrow.vector.types.pojo.Schema;
 
+import serviceb.utils.context;
+
 public class StreamSubscribeUtils {
     
     public StreamSubscribeUtils(){
@@ -41,14 +43,14 @@ public class StreamSubscribeUtils {
 
 
 
-    public static void subscribeToTopic(FlightClient flightClient, String consumerAddr, String topic, String token) throws Exception {
+    public static void subscribeToTopic(FlightClient flightClient, String consumerAddr, String topic, context ctx) throws Exception {
         if (topic == null) {
             return;
         }
 
         String payload = String.format(
-            "{ \"address\": \"%s\", \"topic\": \"%s\", \"auth\": { \"token\": \"%s\" } }",
-            consumerAddr, topic, token
+            "{ \"address\": \"%s\", \"topic\": \"%s\", \"auth\": { \"token\": \"%s\", \"action\":\"%s\" } }",
+            consumerAddr, topic, ctx.JWTToken,ctx.action
         );
 
         Action action = new Action("subscribe", payload.getBytes(StandardCharsets.UTF_8));
@@ -96,7 +98,9 @@ public class StreamSubscribeUtils {
 
 
 public static CompletableFuture<Boolean> checkAccessAsync(String baseUrl, String token, String topic, String action) {
+    System.out.println("this is good");
     HttpClient client = HttpClient.newHttpClient();
+    System.out.println("action:"+action);
     String url = String.format("%s/authorize?topic=%s&action=%s", baseUrl, topic, action);
     HttpRequest request = HttpRequest.newBuilder()
         .uri(URI.create(url))

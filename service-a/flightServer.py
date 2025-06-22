@@ -69,8 +69,8 @@ class FlightServer(flight.FlightServerBase):
         success=None
         accessAllowed:bool=False
         if action.type=="subscribe":
-            address,topic,token=extract_subscription(action)
-            accessAllowed= check_access(self.authBaseURL,token,topic,"")
+            address,topic,auth=extract_subscription(action)
+            accessAllowed= check_access(self.authBaseURL,auth.get("token"),topic,auth.get("action"))
             print(accessAllowed)
             if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic) and accessAllowed:
 

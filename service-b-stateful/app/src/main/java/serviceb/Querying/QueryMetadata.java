@@ -102,7 +102,7 @@ public class QueryMetadata {
         for(String topic:topics){
             if(!this.systemMetadata.contains(topic)){
                 systemMetadata.add(topic);
-                StreamSubscribeUtils.subscribeToTopic(flightClient, myAddress, topic,ctx.JWTToken);
+                StreamSubscribeUtils.subscribeToTopic(flightClient, myAddress, topic,ctx);
             }
         }
     }
@@ -150,7 +150,7 @@ public class QueryMetadata {
     public String createQuerySession(String QueryString,List<String> Topics,Session wsconn,context ctx)throws Exception{
         String queryName=createQueryName();
         Map<String,Schema> TopicsSchemaMap=new HashMap<>();
-        boolean allowedLocal=checkAccess(ctx.JWTToken, Topics, "");
+        boolean allowedLocal=checkAccess(ctx.JWTToken, Topics, ctx.action);
         if(!allowedLocal){
             wsconn.getAsyncRemote().sendText("Error Subscribing to topic");
             return null;
@@ -159,7 +159,7 @@ public class QueryMetadata {
             Schema schema=StreamSubscribeUtils.fetchSchema(Topic, this.flightClient);
             TopicsSchemaMap.put(Topic, schema);
         }
-        QueryCtx context =new QueryCtx(queryName, QueryString, TopicsSchemaMap,wsconn,ctx);
+        QueryCtx context =new QueryCtx(queryName, QueryString, TopicsSchemaMap,wsconn);
 
 
         this.writeLock.lock();

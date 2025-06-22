@@ -10,7 +10,7 @@ def extract_subscription(action):
         data = json.loads(action.body.to_pybytes().decode("utf-8"))
         if "address"  not in data or "topic" not in data:
             raise ValueError("Action body does not contain valid subscription fields")
-        return (data["address"],data["topic"],data['auth']['token'])
+        return (data.get("address"),data.get("topic"),data.get("auth"))
     except Exception as e:
         raise ValueError(f"Failed to extract address: {e}")
 
