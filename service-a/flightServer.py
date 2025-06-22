@@ -73,6 +73,7 @@ class FlightServer(flight.FlightServerBase):
             accessAllowed= check_access(self.authBaseURL,token,topic,"")
             print(accessAllowed)
             if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic) and accessAllowed:
+
                 success=self.systemMetadata.addConsumer(topic ,address)
                 response_msg="Success"
         elif action.type=="unsubscribe":
