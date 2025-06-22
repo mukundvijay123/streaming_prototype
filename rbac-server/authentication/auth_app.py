@@ -6,8 +6,11 @@ from .schemas import UserCreate, UserLogin, UserRead
 from .auth import hash_password, verify_password, create_access_token
 from .deps import get_current_user
 from sqlalchemy.future import select
+import casbin
+import sqlalchemy_adapter
 
-
+adapter = sqlalchemy_adapter.Adapter("sqlite:///idp.db")
+db_enforcer = casbin.Enforcer("authorisation/model.conf", adapter)
 auth_router = APIRouter()
 
 
@@ -23,8 +26,11 @@ async def register(user: UserCreate, db: AsyncSession = Depends(get_db)):
     db_user = User(
         email=user.email,
         hashed_password=hash_password(user.password),
-        full_name=user.full_name
+        full_name=user.full_name,
+        role=user.role
     )
+    #we define roles before hand in the policy
+    db_enforcer.add_grouping_policy(user.full_name, user.role)
     db.add(db_user)
     await db.commit()
     await db.refresh(db_user)
@@ -38,7 +44,7 @@ async def login(user: UserLogin, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=400, detail="Invalid credentials")
     token = create_access_token({
         "sub": str(db_user.id),
-        "role": db_user.full_name  
+        "user": db_user.full_name  
     })  
     return {"access_token": token, "token_type": "bearer"}
 
