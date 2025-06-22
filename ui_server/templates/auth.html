@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login / Signup</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+
+    #auth-container {
+      max-width: 400px;
+      margin: auto;
+    }
+
+    h2 {
+      text-align: center;
+    }
+
+    form {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border: 1px solid #ccc;
+      padding: 20px;
+      background: #f9f9f9;
+    }
+
+    input {
+      padding: 8px;
+      font-family: monospace;
+      font-size: 1rem;
+    }
+
+    button {
+      padding: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+
+    #toggle-auth {
+      text-align: center;
+      margin-top: 10px;
+      cursor: pointer;
+      color: blue;
+      text-decoration: underline;
+    }
+
+    #error {
+      color: red;
+      text-align: center;
+    }
+
+    .hidden {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="auth-container">
+    <h2 id="form-title">Login</h2>
+
+    <form id="auth-form">
+      <input type="email" id="email" placeholder="Email" required />
+      <input type="password" id="password" placeholder="Password" required />
+
+      <input type="text" id="full_name" placeholder="Full Name (Signup only)" class="hidden" />
+      <input type="text" id="role" placeholder="Role (Signup only)" class="hidden" />
+
+      <button type="submit" id="submit-btn">Login</button>
+    </form>
+
+    <div id="toggle-auth">Don't have an account? Sign up</div>
+    <div id="error"></div>
+  </div>
+
+  <script>
+    const form = document.getElementById('auth-form');
+    const email = document.getElementById('email');
+    const password = document.getElementById('password');
+    const fullName = document.getElementById('full_name');
+    const role = document.getElementById('role');
+    const errorDiv = document.getElementById('error');
+    const toggleAuth = document.getElementById('toggle-auth');
+    const formTitle = document.getElementById('form-title');
+    const submitBtn = document.getElementById('submit-btn');
+
+    let isLogin = true;
+
+    toggleAuth.addEventListener('click', () => {
+      isLogin = !isLogin;
+      fullName.classList.toggle('hidden', isLogin);
+      role.classList.toggle('hidden', isLogin);
+      formTitle.textContent = isLogin ? 'Login' : 'Sign Up';
+      submitBtn.textContent = isLogin ? 'Login' : 'Register';
+      toggleAuth.textContent = isLogin
+        ? "Don't have an account? Sign up"
+        : "Already have an account? Login";
+      errorDiv.textContent = '';
+    });
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      errorDiv.textContent = '';
+
+      try {
+        const payload = {
+          email: email.value,
+          password: password.value
+        };
+
+        let url = 'http://localhost:8081/auth/token'
+        if (!isLogin) {
+          url = 'http://localhost:8081/auth/register';
+          payload.full_name = fullName.value;
+          payload.role = role.value;
+        }
+
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+
+        if (!res.ok) {
+          throw new Error(data.detail || 'Something went wrong');
+        }
+
+        if (isLogin) {
+          localStorage.setItem('token', data.access_token);
+          window.location.href = 'client'; // or your main app page
+        } else {
+          alert('Registered successfully. Now login.');
+          toggleAuth.click();
+        }
+      } catch (err) {
+        errorDiv.textContent = err.message;
+      }
+    });
+  </script>
+</body>
+</html>

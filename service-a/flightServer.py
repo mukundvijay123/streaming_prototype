@@ -1,6 +1,6 @@
 import pyarrow as pa
 import pyarrow.flight as flight
-from utils import is_valid_grpc_address,extract_subscription
+from utils import is_valid_grpc_address,extract_subscription,check_access
 from metadata import systemMetadata
 import adbc_driver_postgresql.dbapi as adbc
 
@@ -13,6 +13,7 @@ class FlightServer(flight.FlightServerBase):
         self._location=location
         self.systemMetadata=systemMetadata
         self.adbcConn=adbc.connect(uri=DB_URI)
+        self.authBaseURL="http://localhost:8081/check"
 
     def __GetStreamSchema(self,topic):
         cursor=self.adbcConn.cursor()
@@ -66,10 +67,13 @@ class FlightServer(flight.FlightServerBase):
     
     def do_action(self,context,action):
         success=None
+        accessAllowed:bool=False
         if action.type=="subscribe":
-            address,topic=extract_subscription(action)
-            #DO RBAC HERE
-            if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic):
+            address,topic,token=extract_subscription(action)
+            accessAllowed= check_access(self.authBaseURL,token,topic,"")
+            print(accessAllowed)
+            if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic) and accessAllowed:
+
                 success=self.systemMetadata.addConsumer(topic ,address)
                 response_msg="Success"
         elif action.type=="unsubscribe":
@@ -82,8 +86,10 @@ class FlightServer(flight.FlightServerBase):
         print(self.systemMetadata)
         if success:
             response_bytes=response_msg.encode('utf-8')
+        elif not accessAllowed:
+            response_bytes="error :unautorized".encode('utf-8')
         else :
-            response_bytes="error".encode('utf-8')
+            response_bytes="error :request or server error".encode('utf-8')
         return iter([flight.Result(response_bytes)])
             
 
