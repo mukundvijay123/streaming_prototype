@@ -1,9 +1,9 @@
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError
-from db import get_db
-from models import User
-from authentication.auth import decode_access_token
+from .db import get_db
+from .models import User
+from .auth import decode_access_token
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 

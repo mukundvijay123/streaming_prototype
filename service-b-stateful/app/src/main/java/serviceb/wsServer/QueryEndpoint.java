@@ -54,6 +54,10 @@ public class QueryEndpoint {
                     .map(JsonString::getString)
                     .collect(Collectors.toSet());
                 List<String>topics=new ArrayList<>(topicSet);
+                //RBAC WILL BE HERE
+                /*
+                checkifstatefulorstateless(QueryString) -> (customerA, ABC, statelessRead)
+                */
                 try{
                     this.querySessionName=QueryEndpoint.queryMetadata.createQuerySession(QueryString, topics, session);
                 }catch(Exception e){
