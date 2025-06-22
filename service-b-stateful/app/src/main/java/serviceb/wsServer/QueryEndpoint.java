@@ -7,6 +7,8 @@ import jakarta.websocket.OnMessage;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
 import serviceb.Querying.QueryMetadata;
+import serviceb.Querying.QueryingUtils;
+import serviceb.utils.context;
 
 import java.io.IOException;
 import java.io.StringReader;
@@ -14,6 +16,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import com.google.api.Context;
 
 import jakarta.json.Json;
 import jakarta.json.JsonObject;
@@ -43,6 +47,7 @@ public class QueryEndpoint {
             System.out.println(jsonMessage);
 
             String action = jsonMessage.getString("action", null);
+            String token=jsonMessage.getString("token",null);
             System.out.println("Action: " + action);
 
             if(action.equals("start_query_session")){
@@ -54,15 +59,17 @@ public class QueryEndpoint {
                     .map(JsonString::getString)
                     .collect(Collectors.toSet());
                 List<String>topics=new ArrayList<>(topicSet);
+                
+                context ctx=new context(token, QueryingUtils.QueryType(QueryString));
                 try{
-                    this.querySessionName=QueryEndpoint.queryMetadata.createQuerySession(QueryString, topics, session);
+                    this.querySessionName=QueryEndpoint.queryMetadata.createQuerySession(QueryString, topics, session,ctx);
                 }catch(Exception e){
                     System.err.println("Unable to create query session: "+e.getMessage());
                     e.printStackTrace();
                     //session.close();
                 }
 
-            }else if(action.equals("close")){
+            }else if(action.equals("close_query_session")){
                 try{
                     QueryEndpoint.queryMetadata.deleteQuerySession(this.querySessionName);
                 }catch(Exception e){

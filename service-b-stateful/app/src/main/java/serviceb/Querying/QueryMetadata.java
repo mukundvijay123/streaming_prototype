@@ -7,8 +7,10 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 import org.apache.arrow.flight.FlightClient;
 import org.apache.arrow.vector.VectorSchemaRoot;
@@ -16,12 +18,14 @@ import org.apache.arrow.vector.types.pojo.Schema;
 
 import jakarta.websocket.Session;
 import serviceb.flightServer.StreamSubscribeUtils;
+import serviceb.utils.context;
 
 import org.apache.arrow.flight.Location;
 import org.apache.arrow.memory.BufferAllocator;
 import org.apache.arrow.memory.RootAllocator;
 
 public class QueryMetadata {
+    private static final String AuthorizationUrl="http://localhost:8081/check";
     private Map<String,QueryCtx> QueryMap;
     private Map<String,Set<QueryCtx>> TopicMap;
     private SystemMetadata systemMetadata;
@@ -35,6 +39,7 @@ public class QueryMetadata {
     private final BufferAllocator allocator;
 
     public QueryMetadata(BufferAllocator allocator,String myAddress,String brokerAddress)throws Exception{
+        
         this.QueryMap=new HashMap<>();
         this.TopicMap=new HashMap<>();
         this.systemMetadata=new SystemMetadata();
@@ -63,15 +68,41 @@ public class QueryMetadata {
         }
     }
 
-    private void subscribeToTopics(List<String> topics){
+    private boolean checkAccess(String token, List<String> Topics, String action) {
+
+        // Filter only the topics present in systemMetadata
+        List<String> allowedTopics = Topics.stream()
+            .filter(this.systemMetadata::contains)
+            .collect(Collectors.toList());
+
+        // If none of the topics are present, return true (nothing to deny)
+        if (allowedTopics.isEmpty()) {
+            return true;
+        }
+
+        // Prepare async access check calls
+        List<CompletableFuture<Boolean>> futures = allowedTopics.stream()
+            .map(topic -> StreamSubscribeUtils.checkAccessAsync(AuthorizationUrl, token, topic, action))
+            .collect(Collectors.toList());
+
+        // Wait for all to complete, then check if all returned true
+        CompletableFuture<Void> all = CompletableFuture.allOf(futures.toArray(new CompletableFuture[0]));
+
+        try {
+            all.join();  // Waits for all futures to complete
+            return futures.stream().allMatch(CompletableFuture::join);
+        } catch (Exception e) {
+            System.out.println("Error during access checks: " + e.getMessage());
+            return false;
+        }
+    }
+    
+    private void subscribeToTopics(List<String> topics,context ctx)throws Exception{
         System.out.println(topics);
         for(String topic:topics){
-            System.out.println("hello");
             if(!this.systemMetadata.contains(topic)){
-                System.out.println("hello");
                 systemMetadata.add(topic);
-                System.out.println("hello");
-                StreamSubscribeUtils.subscribeToTopic(flightClient, myAddress, topic);
+                StreamSubscribeUtils.subscribeToTopic(flightClient, myAddress, topic,ctx);
             }
         }
     }
@@ -112,18 +143,21 @@ public class QueryMetadata {
 
 
         for(QueryCtx ctx:subscriberContextSet){
-            //System.out.println(table);
             ctx.supplyData(topic, table);
         }
     }
 
-    public String createQuerySession(String QueryString,List<String> Topics,Session wsconn)throws Exception{
+    public String createQuerySession(String QueryString,List<String> Topics,Session wsconn,context ctx)throws Exception{
         String queryName=createQueryName();
         Map<String,Schema> TopicsSchemaMap=new HashMap<>();
+        boolean allowedLocal=checkAccess(ctx.JWTToken, Topics, ctx.action);
+        if(!allowedLocal){
+            wsconn.getAsyncRemote().sendText("Error Subscribing to topic");
+            return null;
+        }
         for(String Topic:Topics){
             Schema schema=StreamSubscribeUtils.fetchSchema(Topic, this.flightClient);
             TopicsSchemaMap.put(Topic, schema);
-           
         }
         QueryCtx context =new QueryCtx(queryName, QueryString, TopicsSchemaMap,wsconn);
 
@@ -148,7 +182,13 @@ public class QueryMetadata {
         //releasing the lock in the middle so that write lock isnt held for very long continuosly
         this.writeLock.lock();
         try{
-            this.subscribeToTopics(Topics);
+            this.subscribeToTopics(Topics,ctx);
+        }catch(Exception e){
+            if(e.getMessage().contains("Subscription failed for topic")){
+                context.sendText("Failed to subscribe to necessary streams, you are not authorized");
+                deleteQuerySession(queryName);
+            }
+            System.out.println(e.getMessage());
         }finally{
             this.writeLock.unlock();
         }
@@ -157,10 +197,14 @@ public class QueryMetadata {
     }
 
     public void deleteQuerySession(String QueryName)throws Exception{
+        QueryCtx ctx=this.QueryMap.get(QueryName);
+        if(ctx==null){
+            return;
+        }
         this.writeLock.lock();
         try{
 
-            QueryCtx ctx=this.QueryMap.get(QueryName);
+             ctx=this.QueryMap.get(QueryName);
             for(String Topic:ctx.Topics.keySet()){
                 this.TopicMap.get(Topic).remove(ctx);
             }

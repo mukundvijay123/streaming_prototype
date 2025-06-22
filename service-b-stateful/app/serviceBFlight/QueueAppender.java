@@ -59,6 +59,7 @@ public class QueueAppender {
         } catch (Exception e) {
             System.err.println("Error handling incoming data: " + e.getMessage());
             e.printStackTrace();
+            System.out.println(e.getMessage());
             ackStream.onError(e);
         }
     }

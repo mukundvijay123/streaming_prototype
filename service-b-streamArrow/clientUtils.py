@@ -1,6 +1,8 @@
 import pyarrow as pa
 import pyarrow.flight as flight
 import json
+import httpx
+import asyncio
 
 
 def subscribe(topic,RemoteAddress, FlightServerAddress):
@@ -76,3 +78,22 @@ def unsubscribe(topic ,RemoteAddress, FlightServerAddress):
     
     except Exception as conn_error:
         print(f"Error connecting to Flight server: {conn_error}")
+
+
+#For rbac
+async def check_access_async(base_url, token, topic, action) -> bool:
+    url = f"{base_url}/authorize"
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    params = {
+        "topic": topic,
+        "action": action
+    }
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, headers=headers, params=params)
+            return response.status_code == 200
+        except Exception as e:
+            print(f"Error checking access: {e}")
+            return False

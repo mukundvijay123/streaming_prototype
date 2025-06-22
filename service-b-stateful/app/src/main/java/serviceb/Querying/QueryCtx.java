@@ -3,8 +3,8 @@
 
     import java.io.IOException;
     import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+    import java.util.HashMap;
+    import java.util.List;
     import java.util.Map;
     import java.util.Objects;
     import java.util.concurrent.BlockingQueue;
@@ -33,6 +33,7 @@ import java.util.List;
     import serviceb.arrowio.arrowIO;
     import serviceb.arrowio.arrowIOUtils;
     import serviceb.arrowio.arrowOutputTransform;
+    import serviceb.utils.context;
 
     public class QueryCtx {
         private static final int pollInterval=10;//10 milliseconds
@@ -94,7 +95,7 @@ import java.util.List;
             if(InputQueryCollections.size()>1){
                 int numTopics =topics.size();
                 for(int i=0;i<numTopics;i++){
-                    this.   QueryTuple=this.QueryTuple.and(new TupleTag<>(topics.get(i)),this.InputQueryCollections.get(topics.get(i)));
+                    this.QueryTuple=this.QueryTuple.and(new TupleTag<>(topics.get(i)),this.InputQueryCollections.get(topics.get(i)));
                 }
             }
             
@@ -116,13 +117,22 @@ import java.util.List;
                 createPcollectionsTuple();
                 applySql();
                 this.pipelineResult=this.QueryPipeline.run();
+                System.out.println("pipeline result:"+this.pipelineResult);
             }catch(Exception e){
                 e.printStackTrace();
             }
         }
 
         public void stopQuery()throws IOException{
-            this.pipelineResult.cancel();
+            //when an error occurs  in the  setup phase pipeline  never starts
+            //as a result the pipelineResult is null
+            //when deleteQuerySession is called it executes this
+            //since pipelineResult is null it leads to nullptr Exception
+            //thus the if is required  
+            if(pipelineResult!=null){
+                this.pipelineResult.cancel();    
+            }
+            
         }
 
         public void supplyData(String topic,VectorSchemaRoot event)throws Exception{

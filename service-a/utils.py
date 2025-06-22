@@ -1,6 +1,8 @@
 import json 
 import re
 import requests
+import httpx
+import asyncio
 from metadata import systemMetadata
 from queueMap import QueueMap
 def extract_subscription(action):
@@ -8,10 +10,9 @@ def extract_subscription(action):
         data = json.loads(action.body.to_pybytes().decode("utf-8"))
         if "address"  not in data or "topic" not in data:
             raise ValueError("Action body does not contain valid subscription fields")
-        return (data["address"],data["topic"])
+        return (data.get("address"),data.get("topic"),data.get("auth"))
     except Exception as e:
         raise ValueError(f"Failed to extract address: {e}")
-
 
 
 def is_valid_grpc_address(address: str) -> bool:
@@ -54,3 +55,22 @@ def add_topic_to_system(topic_name:str,schema:str,javaServerAddr:str,system_meta
             print(f"Failed to add topic '{topic_name}': {response.json().get('error', 'Unknown error')}")
     except Exception as e:
         print(f"Error while communicating with Java server: {e}")
+
+
+def check_access(base_url, token, topic, action) -> bool:
+    url = f"{base_url}/authorize"
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    params = {
+        "topic": topic,
+        "action": action
+    }
+
+    try:
+        with httpx.Client() as client:
+            response = client.get(url, headers=headers, params=params)
+            return response.status_code == 200
+    except Exception as e:
+        print(f"Error checking access: {e}")
+        return False
