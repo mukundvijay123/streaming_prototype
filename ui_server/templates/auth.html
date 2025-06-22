@@ -132,7 +132,7 @@
 
         if (isLogin) {
           localStorage.setItem('token', data.access_token);
-          window.location.href = 'client.html'; // or your main app page
+          window.location.href = 'client'; // or your main app page
         } else {
           alert('Registered successfully. Now login.');
           toggleAuth.click();
