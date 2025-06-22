@@ -75,6 +75,7 @@ public class mainClassForFlightServerB {
                     try {
                         Thread.sleep(100);  // avoid busy waiting
                     } catch (InterruptedException e) {
+                        System.out.println(e.getMessage());
                         Thread.currentThread().interrupt();
                     }
                 }

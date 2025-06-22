@@ -97,7 +97,7 @@ public class QueryMetadata {
         }
     }
     
-    private void subscribeToTopics(List<String> topics,context ctx){
+    private void subscribeToTopics(List<String> topics,context ctx)throws Exception{
         System.out.println(topics);
         for(String topic:topics){
             if(!this.systemMetadata.contains(topic)){
@@ -143,7 +143,6 @@ public class QueryMetadata {
 
 
         for(QueryCtx ctx:subscriberContextSet){
-            //System.out.println(table);
             ctx.supplyData(topic, table);
         }
     }
@@ -152,10 +151,13 @@ public class QueryMetadata {
         String queryName=createQueryName();
         Map<String,Schema> TopicsSchemaMap=new HashMap<>();
         boolean allowedLocal=checkAccess(ctx.JWTToken, Topics, "");
+        if(!allowedLocal){
+            wsconn.getAsyncRemote().sendText("Error Subscribing to topic");
+            return null;
+        }
         for(String Topic:Topics){
             Schema schema=StreamSubscribeUtils.fetchSchema(Topic, this.flightClient);
             TopicsSchemaMap.put(Topic, schema);
-           
         }
         QueryCtx context =new QueryCtx(queryName, QueryString, TopicsSchemaMap,wsconn,ctx);
 
@@ -181,6 +183,12 @@ public class QueryMetadata {
         this.writeLock.lock();
         try{
             this.subscribeToTopics(Topics,ctx);
+        }catch(Exception e){
+            if(e.getMessage().contains("Subscription failed for topic")){
+                context.sendText("Failed to subscribe to necessary streams, you are not authorized");
+                deleteQuerySession(queryName);
+            }
+            System.out.println(e.getMessage());
         }finally{
             this.writeLock.unlock();
         }
@@ -189,10 +197,14 @@ public class QueryMetadata {
     }
 
     public void deleteQuerySession(String QueryName)throws Exception{
+        QueryCtx ctx=this.QueryMap.get(QueryName);
+        if(ctx==null){
+            return;
+        }
         this.writeLock.lock();
         try{
 
-            QueryCtx ctx=this.QueryMap.get(QueryName);
+             ctx=this.QueryMap.get(QueryName);
             for(String Topic:ctx.Topics.keySet()){
                 this.TopicMap.get(Topic).remove(ctx);
             }

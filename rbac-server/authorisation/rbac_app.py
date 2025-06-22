@@ -23,7 +23,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> TokenUser:
         user_id: Optional[str] = payload.get("sub")
         role: Optional[str] = payload.get("role")
 
-        if not user_id or not role:
+        if not user_id :
             raise HTTPException(status_code=401, detail="Invalid token")
         
         return TokenUser(sub=user_id, role=role)

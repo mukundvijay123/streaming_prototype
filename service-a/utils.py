@@ -10,10 +10,9 @@ def extract_subscription(action):
         data = json.loads(action.body.to_pybytes().decode("utf-8"))
         if "address"  not in data or "topic" not in data:
             raise ValueError("Action body does not contain valid subscription fields")
-        return (data["address"],data["topic"])
+        return (data["address"],data["topic"],data['auth']['token'])
     except Exception as e:
         raise ValueError(f"Failed to extract address: {e}")
-
 
 
 def is_valid_grpc_address(address: str) -> bool:
@@ -58,7 +57,7 @@ def add_topic_to_system(topic_name:str,schema:str,javaServerAddr:str,system_meta
         print(f"Error while communicating with Java server: {e}")
 
 
-async def check_access_async(base_url, token, topic, action) -> bool:
+def check_access(base_url, token, topic, action) -> bool:
     url = f"{base_url}/authorize"
     headers = {
         "Authorization": f"Bearer {token}"
@@ -67,10 +66,11 @@ async def check_access_async(base_url, token, topic, action) -> bool:
         "topic": topic,
         "action": action
     }
-    async with httpx.AsyncClient() as client:
-        try:
-            response = await client.get(url, headers=headers, params=params)
+
+    try:
+        with httpx.Client() as client:
+            response = client.get(url, headers=headers, params=params)
             return response.status_code == 200
-        except Exception as e:
-            print(f"Error checking access: {e}")
-            return False
+    except Exception as e:
+        print(f"Error checking access: {e}")
+        return False

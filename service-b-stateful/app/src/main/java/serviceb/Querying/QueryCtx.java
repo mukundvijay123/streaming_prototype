@@ -119,13 +119,22 @@
                 createPcollectionsTuple();
                 applySql();
                 this.pipelineResult=this.QueryPipeline.run();
+                System.out.println("pipeline result:"+this.pipelineResult);
             }catch(Exception e){
                 e.printStackTrace();
             }
         }
 
         public void stopQuery()throws IOException{
-            this.pipelineResult.cancel();
+            //when an error occurs  in the  setup phase pipeline  never starts
+            //as a result the pipelineResult is null
+            //when deleteQuerySession is called it executes this
+            //since pipelineResult is null it leads to nullptr Exception
+            //thus the if is required  
+            if(pipelineResult!=null){
+                this.pipelineResult.cancel();    
+            }
+            
         }
 
         public void supplyData(String topic,VectorSchemaRoot event)throws Exception{
