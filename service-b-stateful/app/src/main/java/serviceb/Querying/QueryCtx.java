@@ -36,6 +36,7 @@
     import serviceb.utils.context;
 
     public class QueryCtx {
+        private Thread queryThread;
         private static final int pollInterval=10;//10 milliseconds
         public final String QueryName;
         private final String QueryString;
@@ -123,6 +124,24 @@
             }
         }
 
+        public void startQueryAsync() {
+            this.queryThread = new Thread(() -> {
+                try {
+                    CreateQueueMap();
+                    createPcollectionsTuple();
+                    applySql();
+                    this.pipelineResult = this.QueryPipeline.run();
+
+                    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, "Query-" + QueryName);
+            this.queryThread.setDaemon(true);
+            this.queryThread.start();
+        }
+
+
         public void stopQuery()throws IOException{
             //when an error occurs  in the  setup phase pipeline  never starts
             //as a result the pipelineResult is null
@@ -132,7 +151,11 @@
             if(pipelineResult!=null){
                 this.pipelineResult.cancel();    
             }
-            
+            if (queryThread != null && queryThread.isAlive()) {
+                try {
+                    queryThread.join(1000); // optional: wait 1s for cleanup
+                } catch (InterruptedException ignored) {}
+            }
         }
 
         public void supplyData(String topic,VectorSchemaRoot event)throws Exception{
