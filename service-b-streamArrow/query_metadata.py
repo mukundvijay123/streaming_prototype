@@ -55,14 +55,15 @@ class systemQueryMetadata:
         queryString: str,
         wsConn: WebSocket,
         test: bool = False,
-        queryPlan: dict = None
+        queryPlan: dict = None,
+        token: str = None
     ) -> str:
         plan = queryPlan 
         topic = utils.find_topics(plan)[0]
         
         # 2) Generate session name and context
         sessionName = self.createQueryName()
-        ctx = queryContext(sessionName, plan, self.outboundQueue, topic, wsConn)
+        ctx = queryContext(sessionName, plan, self.outboundQueue, topic, wsConn, token)
 
         # 3) Register under lock and detect if first subscriber
         need_subscribe = False
