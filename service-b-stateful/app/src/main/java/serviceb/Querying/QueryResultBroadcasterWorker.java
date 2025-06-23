@@ -18,7 +18,10 @@ public class QueryResultBroadcasterWorker implements Runnable {
                 outputMessage message=arrowOutputTransform.outputQueue.take();
                 String sessionName=message.querySession;
                 QueryCtx ctx=metadata.fetchCtx(sessionName);
-                ctx.sendText(message.outputRow);                
+                if(ctx!=null){
+                    ctx.sendText(message.outputRow);
+                }
+                                
             }catch(Exception e){
                 System.out.println(e.getMessage());
                 e.printStackTrace();

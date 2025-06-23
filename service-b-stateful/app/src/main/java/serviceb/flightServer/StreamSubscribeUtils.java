@@ -77,6 +77,7 @@ public class StreamSubscribeUtils {
     }
 
     public static void unsubscribeToTopic(FlightClient flightClient,String ConsumerAddr,String topic){
+        System.out.println("Unsub called");
     try{
         if(topic==null){
             return;
@@ -98,7 +99,6 @@ public class StreamSubscribeUtils {
 
 
 public static CompletableFuture<Boolean> checkAccessAsync(String baseUrl, String token, String topic, String action) {
-    System.out.println("this is good");
     HttpClient client = HttpClient.newHttpClient();
     System.out.println("action:"+action);
     String url = String.format("%s/authorize?topic=%s&action=%s", baseUrl, topic, action);

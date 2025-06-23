@@ -5,12 +5,22 @@ import httpx
 import asyncio
 from metadata import systemMetadata
 from queueMap import QueueMap
-def extract_subscription(action):
+
+def extract_subscribe(action):
     try:
         data = json.loads(action.body.to_pybytes().decode("utf-8"))
         if "address"  not in data or "topic" not in data:
             raise ValueError("Action body does not contain valid subscription fields")
         return (data.get("address"),data.get("topic"),data.get("auth"))
+    except Exception as e:
+        raise ValueError(f"Failed to extract address: {e}")
+    
+def extract_unsubscribe(action):
+    try:
+        data = json.loads(action.body.to_pybytes().decode("utf-8"))
+        if "address"  not in data or "topic" not in data:
+            raise ValueError("Action body does not contain valid subscription fields")
+        return (data.get("address"),data.get("topic"))
     except Exception as e:
         raise ValueError(f"Failed to extract address: {e}")
 
@@ -70,6 +80,24 @@ def check_access(base_url, token, topic, action) -> bool:
     try:
         with httpx.Client() as client:
             response = client.get(url, headers=headers, params=params)
+            return response.status_code == 200
+    except Exception as e:
+        print(f"Error checking access: {e}")
+        return False
+    
+async def check_access_async(base_url, token, topic, action) -> bool:
+    url = f"{base_url}/authorize"
+    headers = {
+        "Authorization": f"Bearer {token}"
+    }
+    params = {
+        "topic": topic,
+        "action": action
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.get(url, headers=headers, params=params)
             return response.status_code == 200
     except Exception as e:
         print(f"Error checking access: {e}")
