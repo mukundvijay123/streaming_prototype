@@ -1,6 +1,6 @@
 import pyarrow as pa
 import pyarrow.flight as flight
-from utils import is_valid_grpc_address,extract_subscription,check_access
+from utils import is_valid_grpc_address,extract_subscribe, extract_unsubscribe,check_access
 from metadata import systemMetadata
 import adbc_driver_postgresql.dbapi as adbc
 
@@ -25,7 +25,6 @@ class FlightServer(flight.FlightServerBase):
 
     def get_flight_info(self, context, descriptor):
         print("Handling get_flight_info for descriptor:", descriptor)
-        print(descriptor.descriptor_type)
         if descriptor.descriptor_type == flight.DescriptorType.PATH:
             topic = descriptor.path[0].decode()
             schema = self.__GetStreamSchema(topic)
@@ -65,33 +64,38 @@ class FlightServer(flight.FlightServerBase):
             ("unsubscribe","unsubscribe to the stream"),
         ]
     
-    def do_action(self,context,action):
-        success=None
-        accessAllowed:bool=False
-        if action.type=="subscribe":
-            address,topic,auth=extract_subscription(action)
-            accessAllowed= check_access(self.authBaseURL,auth.get("token"),topic,auth.get("action"))
-            print(accessAllowed)
-            if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic) and accessAllowed:
+    def do_action(self, context, action):
+        success = False
+        accessAllowed = True  # Default true for non-subscribe cases
+        response_msg = ""
+        
+        if action.type == "subscribe":
+            address, topic, auth = extract_subscribe(action)
+            accessAllowed = check_access(self.authBaseURL, auth.get("token"), topic, auth.get("action"))
+            print(f"Access allowed: {accessAllowed}")
 
-                success=self.systemMetadata.addConsumer(topic ,address)
-                response_msg="Success"
-        elif action.type=="unsubscribe":
-            address,topic=extract_subscription(action)
+            if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic) and accessAllowed:
+                success = self.systemMetadata.addConsumer(topic, address)
+                response_msg = "Success"
+
+        elif action.type == "unsubscribe":
+            address, topic = extract_unsubscribe(action)
             if is_valid_grpc_address(address) and self.systemMetadata.hasTopic(topic):
-                success=self.systemMetadata.removeConsumer(topic ,address)
-                response_msg=f"Success"
+                success = self.systemMetadata.removeConsumer(topic, address)
+                response_msg = "Success"
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Action type '{action.type}' not supported")
+
         print(self.systemMetadata)
+
         if success:
-            response_bytes=response_msg.encode('utf-8')
+            response_bytes = response_msg.encode("utf-8")
         elif not accessAllowed:
-            response_bytes="error :unautorized".encode('utf-8')
-        else :
-            response_bytes="error :request or server error".encode('utf-8')
+            response_bytes = b"error: unauthorized"
+        else:
+            response_bytes = b"error: request or server error"
+
         return iter([flight.Result(response_bytes)])
-            
 
             
 

@@ -62,10 +62,11 @@ public class QueryMetadata {
         this.writeLock.lock();
         try{
             this.QueryCount++;
-            return "QuerySession"+this.QueryCount;
         }finally{
             this.writeLock.unlock();
         }
+        
+        return "QuerySession"+this.QueryCount;
     }
 
     private boolean checkAccess(String token, List<String> Topics, String action) {
@@ -109,7 +110,8 @@ public class QueryMetadata {
 
     private void unsubscribeToTopics(List<String> topics){
         for(String topic:topics){
-            if(!this.TopicMap.get(topic).isEmpty()){
+        
+            if(this.TopicMap.get(topic).isEmpty()){
                 systemMetadata.remove(topic);
                 StreamSubscribeUtils.unsubscribeToTopic(flightClient, myAddress, topic);
             }
@@ -148,21 +150,28 @@ public class QueryMetadata {
     }
 
     public String createQuerySession(String QueryString,List<String> Topics,Session wsconn,context ctx)throws Exception{
+        
         String queryName=createQueryName();
+        
         Map<String,Schema> TopicsSchemaMap=new HashMap<>();
+        
         boolean allowedLocal=checkAccess(ctx.JWTToken, Topics, ctx.action);
+        
         if(!allowedLocal){
             wsconn.getAsyncRemote().sendText("Error Subscribing to topic");
             return null;
         }
+        
         for(String Topic:Topics){
             Schema schema=StreamSubscribeUtils.fetchSchema(Topic, this.flightClient);
             TopicsSchemaMap.put(Topic, schema);
         }
+        
         QueryCtx context =new QueryCtx(queryName, QueryString, TopicsSchemaMap,wsconn);
 
-
+        
         this.writeLock.lock();
+        
         try{
             this.QueryMap.put(queryName, context);
             for(String topic:Topics){
@@ -174,6 +183,7 @@ public class QueryMetadata {
                     TopicMap.put(topic, newSet);
                 }
             }
+        
 
         }finally{
             this.writeLock.unlock();
@@ -181,7 +191,7 @@ public class QueryMetadata {
 
         //releasing the lock in the middle so that write lock isnt held for very long continuosly
         this.writeLock.lock();
-        try{
+                try{
             this.subscribeToTopics(Topics,ctx);
         }catch(Exception e){
             if(e.getMessage().contains("Subscription failed for topic")){
@@ -193,29 +203,36 @@ public class QueryMetadata {
             this.writeLock.unlock();
         }
         context.startQueryAsync();
+        System.out.println(TopicMap);
         return queryName;
     }
 
     public void deleteQuerySession(String QueryName)throws Exception{
         QueryCtx ctx=this.QueryMap.get(QueryName);
         if(ctx==null){
+            System.out.println("this is null");
             return;
         }
         this.writeLock.lock();
+        Set<String> topicsToUnsubscribe=new HashSet<>();
         try{
-
              ctx=this.QueryMap.get(QueryName);
             for(String Topic:ctx.Topics.keySet()){
-                this.TopicMap.get(Topic).remove(ctx);
+                Set<QueryCtx> topicSet=this.TopicMap.get(Topic);
+                topicSet.remove(ctx);
+                if(topicSet.isEmpty()){
+                    topicsToUnsubscribe.add(Topic);
+                }
             }
-            this.unsubscribeToTopics(new ArrayList<>(ctx.Topics.keySet()));
+
+            this.unsubscribeToTopics(new ArrayList<>(TopicMap.keySet()));
+            System.out.println(topicsToUnsubscribe);
             ctx.stopQuery();
             this.QueryMap.remove(QueryName);
         }finally{
             this.writeLock.unlock();
         }
 
-        this.writeLock.lock();
         
     }
 

@@ -160,7 +160,9 @@
 
         public void supplyData(String topic,VectorSchemaRoot event)throws Exception{
             BlockingQueue<VectorSchemaRoot> queue=this.QueueMap.get(topic);
-            queue.put(event);
+            if(queue!=null){
+                queue.put(event);
+            }
         }
 
         public void sendText(String QueryResultMessage){
