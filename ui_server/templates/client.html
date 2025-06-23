@@ -183,7 +183,7 @@
     disconnectBtn.addEventListener('click', () => {
       if (socket && socket.readyState === WebSocket.OPEN) {
         if (queryActive) {
-          socket.send(JSON.stringify({ action: 'close_query_session' }));
+          socket.send(JSON.stringify({ action: 'close' }));
         }
         socket.close();
       }
@@ -230,7 +230,7 @@
 
 
       socket.send(JSON.stringify({
-        action: 'close',
+        action: 'close_query_session',
         token: token // <- Include token here
       }));
       

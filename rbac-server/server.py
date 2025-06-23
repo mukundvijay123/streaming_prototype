@@ -44,3 +44,6 @@ async def root():
         "rbac_endpoints": ["/check/authorize"]
     }
 
+
+
+# uvicorn server:app --host 0.0.0.0 --port 8081 --reload

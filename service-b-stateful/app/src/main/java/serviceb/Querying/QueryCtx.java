@@ -36,7 +36,7 @@
     import serviceb.utils.context;
 
     public class QueryCtx {
-        private final  context authctx;
+        private Thread queryThread;
         private static final int pollInterval=10;//10 milliseconds
         public final String QueryName;
         private final String QueryString;
@@ -51,8 +51,7 @@
 
 
 
-        public QueryCtx(String QueryName,String QueryString,Map<String,Schema> Topics,Session wsConn,context ctx){
-            this.authctx=ctx;
+        public QueryCtx(String QueryName,String QueryString,Map<String,Schema> Topics,Session wsConn){
             this.QueryName=QueryName;
             this.Topics=Topics;
             this.QueueMap=new ConcurrentHashMap<>();
@@ -125,6 +124,24 @@
             }
         }
 
+        public void startQueryAsync() {
+            this.queryThread = new Thread(() -> {
+                try {
+                    CreateQueueMap();
+                    createPcollectionsTuple();
+                    applySql();
+                    this.pipelineResult = this.QueryPipeline.run();
+
+                    
+                } catch (Exception e) {
+                    e.printStackTrace();
+                }
+            }, "Query-" + QueryName);
+            this.queryThread.setDaemon(true);
+            this.queryThread.start();
+        }
+
+
         public void stopQuery()throws IOException{
             //when an error occurs  in the  setup phase pipeline  never starts
             //as a result the pipelineResult is null
@@ -134,12 +151,18 @@
             if(pipelineResult!=null){
                 this.pipelineResult.cancel();    
             }
-            
+            if (queryThread != null && queryThread.isAlive()) {
+                try {
+                    queryThread.join(1000); // optional: wait 1s for cleanup
+                } catch (InterruptedException ignored) {}
+            }
         }
 
         public void supplyData(String topic,VectorSchemaRoot event)throws Exception{
             BlockingQueue<VectorSchemaRoot> queue=this.QueueMap.get(topic);
-            queue.put(event);
+            if(queue!=null){
+                queue.put(event);
+            }
         }
 
         public void sendText(String QueryResultMessage){

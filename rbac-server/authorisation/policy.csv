@@ -10,12 +10,3 @@ p, customerALX, XYZ, statefulRead
 p, customerALX, ABC, statelessRead
 p, customerALX, LMN, statelessRead
 p, customerALX, XYZ, statelessRead
-
-
-g, alice, customerA
-g, bob, customerAL
-g, charlie, customerALX
-g, dave, customerAX
-g, eve, customerALX
-g, frank, customerALX
-g, harry, customerALX
