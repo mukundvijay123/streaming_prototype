@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Consumer Streaming Client</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    #header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    #header h1 { margin: 0; }
+    #controls { margin-bottom: 10px; }
+    #data-container { border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: auto; background-color: #f9f9f9; }
+    .data-item { margin: 5px 0; padding: 5px; border-bottom: 1px solid #ddd; word-break: break-all; }
+    #topic { width: 200px; }
+  </style>
+</head>
+<body>
+  <div id="header">
+    <h1>Consumer Streaming Client</h1>
+    <button onclick="logout()">Logout</button>
+  </div>
+  <div id="controls">
+    <input type="text" id="topic" placeholder="Topic name" />
+    <button onclick="subscribe()">Subscribe</button>
+    <button onclick="unsubscribe()">Unsubscribe</button>
+    <br><br>
+  </div>
+  <div id="data-container"></div>
+  <script>
+    let ws;
+    let currentTopic = '';
+    function logout() {
+      localStorage.removeItem('jwt_token');
+      window.location.href = '/pages/auth';
+    }
+    function subscribe() {
+      const topic = document.getElementById('topic').value;
+      const token = localStorage.getItem('jwt_token');
+      if (!topic || !token) {
+        alert('Topic and login required!');
+        return;
+      }
+      if (!ws || ws.readyState !== 1) {
+        ws = new WebSocket('ws://localhost:8765/ws');
+        ws.onopen = () => {
+          ws.send(JSON.stringify({ action: 'subscribe', topic, token }));
+        };
+        ws.onmessage = (event) => {
+          const container = document.getElementById('data-container');
+          const div = document.createElement('div');
+          div.className = 'data-item';
+          div.textContent = event.data;
+          container.appendChild(div);
+        };
+        ws.onclose = () => { ws = null; };
+      } else {
+        ws.send(JSON.stringify({ action: 'subscribe', topic, token }));
+      }
+      currentTopic = topic;
+    }
+    function unsubscribe() {
+      if (ws && currentTopic) {
+        ws.send(JSON.stringify({ action: 'unsubscribe', topic: currentTopic }));
+        currentTopic = '';
+      }
+    }
+    // Redirect to auth if not logged in
+    if (!localStorage.getItem('jwt_token')) {
+      window.location.href = '/pages/auth';
+    }
+  </script>
+</body>
+</html>
