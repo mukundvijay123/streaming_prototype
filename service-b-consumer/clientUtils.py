@@ -4,7 +4,14 @@ import json
 import httpx
 import asyncio
 
-def subscribe(topic,RemoteAddress, FlightServerAddress):
+
+class ctx:
+    def __init__(self,token:str,action:str="statelessRead"):
+        self.token=token
+        self.action=action
+
+
+def subscribe(topic:str,RemoteAddress:str, FlightServerAddress:str,ctx:ctx):
     try:
         # Establish connection
         flight_client = flight.connect(RemoteAddress)
@@ -12,7 +19,11 @@ def subscribe(topic,RemoteAddress, FlightServerAddress):
         # Prepare payload
         payload = {
             "address": FlightServerAddress,
-            "topic":topic
+            "topic":topic,
+            "auth":{
+                "token":ctx.jwt,
+                "action":ctx.action
+            }
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
         
@@ -95,51 +106,3 @@ async def check_access_async(base_url, token, topic, action) -> bool:
         except Exception as e:
             print(f"Error checking access: {e}")
             return False
-
-def find_topics(json_substrait_plans, tables=None, errors=None):
-    """
-    Perform a DFS traversal of a nested dictionary/list structure to find
-    all 'named_table' keys and their values, with error handling.
-
-    Args:
-        json_substrait_plans: The nested dict/list to traverse.
-        tables: Internal list to collect found tables.
-        errors: Internal list to collect error messages.
-
-    Returns:
-        topics: List of unique named_table values found.
-    """
-    if tables is None:
-        tables = []
-    if errors is None:
-        errors = []
-
-    try:
-        if isinstance(json_substrait_plans, dict):
-            # Attempt to extract named_table if present
-            if "named_table" in json_substrait_plans:
-                try:
-                    names = json_substrait_plans["named_table"]["names"]
-                    if isinstance(names, str):
-                        tables.append(names)
-                    elif isinstance(names, list):
-                        tables.extend(names)
-                    else:
-                        raise TypeError(f"'names' is not str or list: {names!r}")
-                except Exception as e:
-                    errors.append(f"Error extracting named_table.names: {e}")
-
-            # Recurse into all values
-            for value in json_substrait_plans.values():
-                find_topics(value, tables, errors)
-
-        elif isinstance(json_substrait_plans, list):
-            for item in json_substrait_plans:
-                find_topics(item, tables, errors)
-        # Other types (str, int, etc.) are ignored
-    except Exception as e:
-        # Catch unexpected errors at this node
-        print(e)
-
-    # Return unique topics
-    return list(set(tables))

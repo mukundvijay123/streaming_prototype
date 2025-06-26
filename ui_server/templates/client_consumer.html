@@ -30,12 +30,12 @@
     let ws;
     let currentTopic = '';
     function logout() {
-      localStorage.removeItem('jwt_token');
+      localStorage.removeItem('token');
       window.location.href = '/pages/auth';
     }
     function subscribe() {
       const topic = document.getElementById('topic').value;
-      const token = localStorage.getItem('jwt_token');
+      const token = localStorage.getItem('token');
       if (!topic || !token) {
         alert('Topic and login required!');
         return;
@@ -65,7 +65,7 @@
       }
     }
     // Redirect to auth if not logged in
-    if (!localStorage.getItem('jwt_token')) {
+    if (!localStorage.getItem('token')) {
       window.location.href = '/pages/auth';
     }
   </script>
