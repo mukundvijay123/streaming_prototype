@@ -7,6 +7,7 @@ import jakarta.websocket.OnMessage;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.ServerEndpoint;
 import serviceb.Querying.QueryMetadata;
+import serviceb.Querying.QueryingUtils;
 import serviceb.utils.context;
 
 import java.io.IOException;
@@ -47,7 +48,6 @@ public class QueryEndpoint {
 
             String action = jsonMessage.getString("action", null);
             String token=jsonMessage.getString("token",null);
-            context ctx=new context(token);
             System.out.println("Action: " + action);
 
             if(action.equals("start_query_session")){
@@ -59,6 +59,8 @@ public class QueryEndpoint {
                     .map(JsonString::getString)
                     .collect(Collectors.toSet());
                 List<String>topics=new ArrayList<>(topicSet);
+                
+                context ctx=new context(token, QueryingUtils.QueryType(QueryString));
                 try{
                     this.querySessionName=QueryEndpoint.queryMetadata.createQuerySession(QueryString, topics, session,ctx);
                 }catch(Exception e){
@@ -67,7 +69,7 @@ public class QueryEndpoint {
                     //session.close();
                 }
 
-            }else if(action.equals("close")){
+            }else if(action.equals("close_query_session")){
                 try{
                     QueryEndpoint.queryMetadata.deleteQuerySession(this.querySessionName);
                 }catch(Exception e){
