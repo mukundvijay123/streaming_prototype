@@ -4,8 +4,13 @@ import json
 import httpx
 import asyncio
 
+class clientCtx:
+    def __init__(self,token:str,action:str="statelessRead"):
+        self.token=token
+        self.action=action
 
-def subscribe(topic,RemoteAddress, FlightServerAddress):
+
+def subscribe(topic:str,RemoteAddress:str, FlightServerAddress:str,ctx:clientCtx):
     try:
         # Establish connection
         flight_client = flight.connect(RemoteAddress)
@@ -13,7 +18,11 @@ def subscribe(topic,RemoteAddress, FlightServerAddress):
         # Prepare payload
         payload = {
             "address": FlightServerAddress,
-            "topic":topic
+            "topic":topic,
+            "auth":{
+                "token":ctx.jwt,
+                "action":ctx.action
+            }
         }
         payload_bytes = json.dumps(payload).encode("utf-8")
         
@@ -40,8 +49,6 @@ def subscribe(topic,RemoteAddress, FlightServerAddress):
     
     except Exception as conn_error:
         print(f"Error connecting to Flight server: {conn_error}")
-
-
 
 def unsubscribe(topic ,RemoteAddress, FlightServerAddress):
     try:

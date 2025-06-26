@@ -86,7 +86,6 @@
 
   <div id="controls">
     <input type="text" id="queryString" placeholder="Optional query string"/>
-    <input type="text" id="tokenInput" placeholder="JWT Token" />
     <button id="start-query-btn" disabled>Start Query</button>
     <button id="close-query-btn" disabled>Close Query</button>
     <span id="status"></span>
@@ -110,7 +109,6 @@
     const errorDiv         = document.getElementById('error');
     const dataContainer    = document.getElementById('data-container');
     const queryInput       = document.getElementById('queryString');
-    const tokenInput      = document.getElementById('tokenInput');
 
     function setStatus(msg) {
       statusSpan.textContent = msg;
@@ -135,6 +133,11 @@
       disconnectBtn.disabled = !connected;
       startQueryBtn.disabled = !connected || queryActive;
       closeQueryBtn.disabled = !connected || !queryActive;
+    }
+
+    // Helper to get JWT token from localStorage
+    function getToken() {
+      return localStorage.getItem('token');
     }
 
     window.onerror = function(msg, src, line, col, err) {
@@ -187,10 +190,15 @@
 
       errorDiv.textContent = '';
       const queryString = queryInput.value.trim();
-      const token = tokenInput.value.trim();
+      const token = getToken();
 
-      if (!queryString || !token) {
-        errorDiv.textContent = 'Query string and token are required.';
+      if (!queryString) {
+        errorDiv.textContent = 'Query string is required.';
+        return;
+      }
+
+      if (!token) {
+        errorDiv.textContent = 'Authentication token missing. Please login.';
         return;
       }
 
@@ -208,8 +216,17 @@
 
     closeQueryBtn.addEventListener('click', () => {
       if (!socket || socket.readyState !== WebSocket.OPEN || !queryActive) return;
+      
+      const token = getToken();
+      if (!token) {
+        errorDiv.textContent = 'Authentication token missing. Please login.';
+        return;
+      }
 
-      socket.send(JSON.stringify({ action: 'close' }));
+      socket.send(JSON.stringify({ 
+        action: 'close',
+        token: token 
+      }));
       setStatus('Query closed');
       queryActive = false;
       setConnectedState(true);
