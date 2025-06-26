@@ -5,69 +5,312 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Consumer Streaming Client</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    #header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
-    #header h1 { margin: 0; }
-    #controls { margin-bottom: 10px; }
-    #data-container { border: 1px solid #ccc; padding: 10px; height: 400px; overflow-y: auto; background-color: #f9f9f9; }
-    .data-item { margin: 5px 0; padding: 5px; border-bottom: 1px solid #ddd; word-break: break-all; }
-    #topic { width: 200px; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 20px;
+    }
+    #header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    #header h1 {
+      margin: 0;
+    }
+    #connection-controls {
+      display: flex;
+      gap: 10px;
+    }
+    #controls {
+      margin-bottom: 10px;
+    }
+    #data-container {
+      border: 1px solid #ccc;
+      padding: 10px;
+      height: 400px;
+      overflow-y: auto;
+      background-color: #f9f9f9;
+    }
+    .data-item {
+      margin: 5px 0;
+      padding: 5px;
+      border-bottom: 1px solid #ddd;
+      word-break: break-all;
+    }
+    input[type="text"] {
+      padding: 5px;
+      font-size: 1rem;
+      width: 200px;
+      margin-right: 5px;
+    }
+    button {
+      padding: 5px 10px;
+      font-size: 1rem;
+      cursor: pointer;
+    }
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    button.disconnect-btn {
+      background-color: #f44336;
+      color: white;
+      border: none;
+    }
+    button.disconnect-btn:hover:not(:disabled) {
+      background-color: #d32f2f;
+    }
+    button.logout-btn {
+      background-color: #ff9800;
+      color: white;
+      border: none;
+    }
+    button.logout-btn:hover {
+      background-color: #f57c00;
+    }
+    #subscribed-topics {
+      margin-top: 10px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      background-color: #f1f1f1;
+    }
+    #subscribed-topics ul {
+      list-style-type: none;
+      padding: 0;
+    }
+    #subscribed-topics li {
+      margin: 5px 0;
+    }
+    #status {
+      margin-left: 10px;
+      font-style: italic;
+    }
+    #error {
+      color: red;
+      margin-top: 10px;
+    }
   </style>
 </head>
 <body>
   <div id="header">
     <h1>Consumer Streaming Client</h1>
-    <button onclick="logout()">Logout</button>
+    <div id="connection-controls">
+      <button id="connect-btn">Connect WebSocket</button>
+      <button id="disconnect-btn" class="disconnect-btn" disabled>Disconnect WebSocket</button>
+      <button id="logout-btn" class="logout-btn">Logout</button>
+    </div>
   </div>
+
   <div id="controls">
-    <input type="text" id="topic" placeholder="Topic name" />
-    <button onclick="subscribe()">Subscribe</button>
-    <button onclick="unsubscribe()">Unsubscribe</button>
-    <br><br>
+    <input
+      type="text"
+      id="topic-input"
+      placeholder="Enter topic (e.g. ABC)"
+    />
+    <button id="subscribe-btn" disabled>Subscribe</button>
+    <button id="unsubscribe-btn" disabled>Unsubscribe</button>
+    <span id="status"></span>
+    <div id="error"></div>
   </div>
+
   <div id="data-container"></div>
+
+  <div id="subscribed-topics">
+    <h3>Subscribed Topics</h3>
+    <ul id="topics-list"></ul>
+  </div>
+
   <script>
-    let ws;
-    let currentTopic = '';
+    const statusSpan = document.getElementById('status');
+    const errorDiv = document.getElementById('error');
+    const dataContainer = document.getElementById('data-container');
+    const topicInput = document.getElementById('topic-input');
+    const subscribeBtn = document.getElementById('subscribe-btn');
+    const unsubscribeBtn = document.getElementById('unsubscribe-btn');
+    const connectBtn = document.getElementById('connect-btn');
+    const disconnectBtn = document.getElementById('disconnect-btn');
+    const logoutBtn = document.getElementById('logout-btn');
+    const topicsList = document.getElementById('topics-list');
+
+    let socket = null;
+    let subscribedTopics = new Set();
+
+    // Helper to get JWT token
+    function getToken() {
+      return localStorage.getItem('token');
+    }
+
+    function setStatus(msg) {
+      statusSpan.textContent = msg;
+    }
+
+    function setError(msg) {
+      errorDiv.textContent = msg;
+    }
+
+    function clearError() {
+      errorDiv.textContent = '';
+    }
+
+    function clearData() {
+      dataContainer.innerHTML = '';
+    }
+
+    function appendData(text) {
+      const item = document.createElement('div');
+      item.className = 'data-item';
+      item.textContent = text;
+      dataContainer.appendChild(item);
+      dataContainer.scrollTop = dataContainer.scrollHeight;
+    }
+
+    function updateSubscribedTopics() {
+      topicsList.innerHTML = '';
+      subscribedTopics.forEach((topic) => {
+        const li = document.createElement('li');
+        li.textContent = topic;
+        topicsList.appendChild(li);
+      });
+    }
+
+    function setConnectedState(connected) {
+      connectBtn.disabled = connected;
+      disconnectBtn.disabled = !connected;
+      subscribeBtn.disabled = !connected;
+      unsubscribeBtn.disabled = !connected;
+    }
+
     function logout() {
       localStorage.removeItem('token');
       window.location.href = '/pages/auth';
     }
-    function subscribe() {
-      const topic = document.getElementById('topic').value;
-      const token = localStorage.getItem('token');
-      if (!topic || !token) {
-        alert('Topic and login required!');
+
+    // Check authentication on page load
+    window.addEventListener('load', () => {
+      if (!getToken()) {
+        window.location.href = '/pages/auth';
+      }
+    });
+
+    connectBtn.addEventListener('click', () => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        setError('WebSocket is already connected.');
         return;
       }
-      if (!ws || ws.readyState !== 1) {
-        ws = new WebSocket('ws://localhost:8765/ws');
-        ws.onopen = () => {
-          ws.send(JSON.stringify({ action: 'subscribe', topic, token }));
-        };
-        ws.onmessage = (event) => {
-          const container = document.getElementById('data-container');
-          const div = document.createElement('div');
-          div.className = 'data-item';
-          div.textContent = event.data;
-          container.appendChild(div);
-        };
-        ws.onclose = () => { ws = null; };
+
+      const token = getToken();
+      if (!token) {
+        setError('Authentication token missing. Please login.');
+        return;
+      }
+
+      clearData();
+      clearError();
+      setStatus('Connecting to WebSocket server...');
+
+      socket = new WebSocket('ws://localhost:8765/ws');
+
+      socket.onopen = () => {
+        setStatus('WebSocket Connected');
+        setConnectedState(true);
+        console.log('WebSocket open');
+      };
+
+      socket.onmessage = (event) => {
+        appendData(event.data);
+      };
+
+      socket.onerror = (err) => {
+        console.error('WebSocket error:', err);
+        setStatus('WebSocket error');
+        setError('WebSocket error occurred.');
+      };
+
+      socket.onclose = (ev) => {
+        setStatus('WebSocket Disconnected');
+        setConnectedState(false);
+        console.log('WebSocket closed', ev);
+        socket = null;
+        subscribedTopics.clear();
+        updateSubscribedTopics();
+      };
+    });
+
+    disconnectBtn.addEventListener('click', () => {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.close();
+        setStatus('WebSocket Disconnected');
+        console.log('WebSocket manually closed');
       } else {
-        ws.send(JSON.stringify({ action: 'subscribe', topic, token }));
+        setError('No active WebSocket connection to disconnect.');
       }
-      currentTopic = topic;
-    }
-    function unsubscribe() {
-      if (ws && currentTopic) {
-        ws.send(JSON.stringify({ action: 'unsubscribe', topic: currentTopic }));
-        currentTopic = '';
+    });
+
+    subscribeBtn.addEventListener('click', () => {
+      const topic = topicInput.value.trim();
+      const token = getToken();
+      
+      if (!topic) {
+        setError('Please enter a topic to subscribe');
+        return;
       }
-    }
-    // Redirect to auth if not logged in
-    if (!localStorage.getItem('token')) {
-      window.location.href = '/pages/auth';
-    }
+
+      if (!token) {
+        setError('Authentication token missing. Please login.');
+        return;
+      }
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({
+          action: 'subscribe',
+          topic:topic,
+          token:token
+        }));
+        subscribedTopics.add(topic);
+        updateSubscribedTopics();
+        console.log(`Subscribed to topic: ${topic}`);
+      } else {
+        alert('WebSocket is not connected.');
+      }
+
+    });
+
+    unsubscribeBtn.addEventListener('click', () => {
+      const topic = topicInput.value.trim();
+      const token = getToken();
+      
+      if (!topic) {
+        setError('Please enter a topic to unsubscribe');
+        return;
+      }
+
+      if (!token) {
+        setError('Authentication token missing. Please login.');
+        return;
+      }
+
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        clearError();
+        socket.send(JSON.stringify({ 
+          action: 'unsubscribe', 
+          topic: topic,
+          token: token 
+        }));
+        subscribedTopics.delete(topic);
+        updateSubscribedTopics();
+        console.log(`Unsubscribed from topic: ${topic}`);
+      } else {
+        setError('WebSocket is not connected.');
+      }
+    });
+
+    logoutBtn.addEventListener('click', logout);
+
+    window.onerror = function(msg, src, line, col, err) {
+      setError(`Error: ${msg} (${src}:${line})`);
+      return true;
+    };
   </script>
 </body>
 </html>

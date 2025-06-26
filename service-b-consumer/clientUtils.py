@@ -5,13 +5,13 @@ import httpx
 import asyncio
 
 
-class ctx:
+class clientCtx:
     def __init__(self,token:str,action:str="statelessRead"):
         self.token=token
         self.action=action
 
 
-def subscribe(topic:str,RemoteAddress:str, FlightServerAddress:str,ctx:ctx):
+def subscribe(topic:str,RemoteAddress:str, FlightServerAddress:str,ctx:clientCtx):
     try:
         # Establish connection
         flight_client = flight.connect(RemoteAddress)
@@ -21,7 +21,7 @@ def subscribe(topic:str,RemoteAddress:str, FlightServerAddress:str,ctx:ctx):
             "address": FlightServerAddress,
             "topic":topic,
             "auth":{
-                "token":ctx.jwt,
+                "token":ctx.token,
                 "action":ctx.action
             }
         }
