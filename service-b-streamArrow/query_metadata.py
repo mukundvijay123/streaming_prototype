@@ -41,10 +41,10 @@ class systemQueryMetadata:
         with self.ReadQueryLock:
             return set(self.TopicMap.get(topic, []))
 
-    def __subscriptionHandler(self, topic: str, subscribe: bool):
+    def __subscriptionHandler(self, topic: str, subscribe: bool,context:clientUtils.clientCtx=None):
         # network I/O: subscribe or unsubscribe
         if subscribe:
-            clientUtils.subscribe(topic, self.brokerAddress, self.myAddress)
+            clientUtils.subscribe(topic, self.brokerAddress, self.myAddress,context)
         else:
             clientUtils.unsubscribe(topic, self.brokerAddress, self.myAddress)
 
@@ -56,14 +56,14 @@ class systemQueryMetadata:
         wsConn: WebSocket,
         test: bool = False,
         queryPlan: dict = None,
-        token: str = None
+        context: clientUtils.clientCtx = None
     ) -> str:
         plan = queryPlan 
         topic = utils.find_topics(plan)[0]
         
         # 2) Generate session name and context
         sessionName = self.createQueryName()
-        ctx = queryContext(sessionName, plan, self.outboundQueue, topic, wsConn, token)
+        ctx = queryContext(sessionName, plan, self.outboundQueue, topic, wsConn, context)
 
         # 3) Register under lock and detect if first subscriber
         need_subscribe = False
@@ -76,7 +76,7 @@ class systemQueryMetadata:
 
         # 4) Perform subscription network I/O outside lock
         if need_subscribe:
-            self.__subscriptionHandler(topic, True)
+            self.__subscriptionHandler(topic, True,context)
 
         # 5) Start the query’s execution thread
         ctx.start()
@@ -102,7 +102,7 @@ class systemQueryMetadata:
 
         # 2) Unsubscribe outside lock
         if need_unsubscribe:
-            self.__subscriptionHandler(topic, False)
+            self.__subscriptionHandler(topic, False,None)
 
         # 3) Stop the query context’s thread
         ctx.stop()

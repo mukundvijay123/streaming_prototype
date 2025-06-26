@@ -13,7 +13,7 @@ import json
 import uvicorn
 import aiohttp
 from HttpRequests import fetchSubstraitPlan
-from clientUtils import subscribe, unsubscribe, check_access_async
+from clientUtils import subscribe, unsubscribe, check_access_async,clientCtx
 import utils
 
 app = FastAPI()
@@ -102,12 +102,13 @@ async def websocket_handler(websocket: WebSocket):
                     # RBAC: check access for the topic
                     topics = utils.find_topics(query_plan)
                     topic = topics[0] if topics else None
+                    context=clientCtx(token)
                     if topic:
-                        allowed = await clientUtils.check_access_async("http://localhost:8081", token, topic, "subscribe")
+                        allowed = await check_access_async("http://localhost:8081/check", context.token, topic, context.action)
                         if not allowed:
                             await websocket.send_text("Error: Not authorized to subscribe to topic.")
                             continue
-                    sessionName=system_metadata.createQuerySession(query_string,websocket,False,query_plan,token)
+                    sessionName=system_metadata.createQuerySession(query_string,websocket,False,query_plan,context)
                 else:
                     await websocket.send_text("Error: query_string and token required.")
             elif action=="close_query_session":

@@ -11,7 +11,7 @@ from datetime import datetime
 import pyarrow as pa
 import json
 import uvicorn
-from clientUtils import subscribe, unsubscribe,ctx, check_access_async
+from clientUtils import subscribe, unsubscribe,clientCtx, check_access_async
 
 app = FastAPI()
 
@@ -87,9 +87,9 @@ async def websocket_handler(websocket: WebSocket):
                 if not token:
                     await websocket.send_text("Error: Token required for subscription.")
                     continue
-                context=ctx(token)
+                context=clientCtx(token)
                 # RBAC: check access for the topic
-                allowed = await check_access_async("http://localhost:8081/check", ctx.token, topic, ctx.action)
+                allowed = await check_access_async("http://localhost:8081/check", context.token, topic, context.action)
                 if not allowed:
                     await websocket.send_text("Error: Not authorized to subscribe to topic.")
                     continue
@@ -99,7 +99,7 @@ async def websocket_handler(websocket: WebSocket):
                     system_metadata.addTopic(topic)
                     subscribe(topic, "grpc://127.0.0.1:8815", "grpc://127.0.0.1:8816",context)
                     print(f"[{datetime.now().isoformat()}] [WebSocket] Subscribed to topic '{topic}'")
-                    
+
                 system_metadata.addConsumer(topic, websocket)
                 subscribed_topics.add(topic)
                 print(f"[{datetime.now().isoformat()}] [WebSocket] Client subscribed to topic '{topic}'")
