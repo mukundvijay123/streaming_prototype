@@ -20,7 +20,7 @@ def subscribe(topic:str,RemoteAddress:str, FlightServerAddress:str,ctx:clientCtx
             "address": FlightServerAddress,
             "topic":topic,
             "auth":{
-                "token":ctx.jwt,
+                "token":ctx.token,
                 "action":ctx.action
             }
         }
