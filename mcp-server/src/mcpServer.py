@@ -13,15 +13,15 @@ MCPServerUtils=mcpUtils(serviceAlocation)
 
 
 @MCPServer.tool(name="list_streams",description="This tool is used to list all the streams on the broker")
-def list_streams()->str:
+def list_streams() -> str:
     try:
         flights = MCPServerUtils.flightClient.list_flights()
-        stream_list = [f.descriptor.path for f in flights]
-        return f"Available Streams:\n" + "\n".join([str(s) for s in stream_list])
+        # Decode bytes in descriptor paths
+        stream_list = [[p.decode() for p in f.descriptor.path] for f in flights]
+        formatted_streams = [" / ".join(path) for path in stream_list]
+        return "Available Streams:\n" + "\n".join(formatted_streams)
     except Exception as e:
         return f"Error listing streams: {e}"
-    
-
 
 @MCPServer.tool(name="fetch_stream_schema",description="this tool is used to fetch the schema of a stream")
 def fetch_stream(topic:str=""):
