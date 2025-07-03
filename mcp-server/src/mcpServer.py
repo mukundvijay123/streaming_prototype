@@ -3,7 +3,7 @@ from mcp.server.fastmcp import FastMCP
 from mcpUtils import mcpUtils
 import argparse
 import os
-from WebsocketClient import start_websocket_app
+from mcpStreamer import start_websocket_app
 serviceAURL="grpc://localhost:8815"
 serviceBURL="ws://localhost:8767/ws/querEndpoint"
 serviceAlocation = flight.Location.for_grpc_tcp("localhost", 8815)
@@ -36,12 +36,21 @@ def fetch_stream(topic:str=""):
     except Exception as e:
         return f"Error fetching schema for topic '{topic}': {e}"
     
-@MCPServer.tool(name="getStreamingData", description="Use the fetch_stream_schema to get the schema and then come to this tool. This tool is used to fetch streaming data based on what the user has asked. Convert what the user has asked into an SQL query and pass that query in the function in order to use this function. Use this if user wants data of stream, but convert what the user wants into a full fledged SQL query. NOTE: before calling this tool, fetch the schema for the topic requested and then frame the query.")
-def get_streaming_data(query:str, topic:str):
-    token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI3MGQ4MjY0Yi0zMDRmLTQxMzktYWFlYy1iYTQ4YTEwMzZmZGEiLCJ1c2VyIjoiZXNoYWFuIiwiZXhwIjoxNzUxNDkxNzEzfQ.o_cTnbT4UFpxX6w2635qLOQxHp7F88FVG1BXCfj5o3I"
-    start_websocket_app(query, topic, token)
+@MCPServer.tool(name="getStreamingData",
+            description="""Use the fetch_stream_schema to get the schema and then come to this tool.
+            This tool is used to fetch streaming data based on what the user has asked.
+            Convert what the user has asked into an SQL query and pass that query in the function in order to use this function. 
+            Use this if user wants data of stream, but convert what the user wants into a full fledged SQL query. 
+            NOTE: before calling this tool, fetch the schema for the topic requested and then frame the query.
+            The topic argument is a list of strings(topicnames)"""
+            )
+def get_streaming_data(query:str, topic:list):
+    try:
+        start_websocket_app(query, topic, MCPServerUtils.token)
+    except Exception as e:
+        return f"""There was an error while creating the query session{e}."""
 
-    return "THREAD EXECUTED SUCESSFULLY"
+    return "Query Session created successfully"
 
     
 if __name__=="__main__":
