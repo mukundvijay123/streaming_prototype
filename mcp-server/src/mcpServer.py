@@ -3,6 +3,7 @@ from mcp.server.fastmcp import FastMCP
 from mcpUtils import mcpUtils
 import argparse
 import os
+import logging
 from mcpStreamer import start_websocket_app
 serviceAURL="grpc://localhost:8815"
 serviceBURL="ws://localhost:8767/ws/querEndpoint"
@@ -12,7 +13,15 @@ serviceAlocation = flight.Location.for_grpc_tcp("localhost", 8815)
 MCPServer=FastMCP("Composable architecture for fast analyticd")
 MCPServerUtils=mcpUtils(serviceAlocation)
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("mcp.log", encoding="utf-8")
+    ]
+)
 
+logger = logging.getLogger(__name__)
 @MCPServer.tool(name="list_streams",description="This tool is used to list all the streams on the broker")
 def list_streams() -> str:
     try:
