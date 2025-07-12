@@ -4,11 +4,12 @@ import pyarrow as pa
 from pyarrow.lib import tobytes
 import pyarrow.substrait as substrait
 import json
+import clientUtils
 from fastapi import WebSocket
 import janus
 
 class queryContext:
-    def __init__(self,QueryName:str,QueryPlan:str,outboundQueue:janus.Queue,topic:str,wsConn:WebSocket):
+    def __init__(self,QueryName:str,QueryPlan:str,outboundQueue:janus.Queue,topic:str,wsConn:WebSocket, context:clientUtils.clientCtx=None):
         self.QueryName=QueryName
         self.inboundQueue=Queue()
         self.QueryPlan=QueryPlan
@@ -17,6 +18,7 @@ class queryContext:
         self.__QueryThread=threading.Thread(target=self.__runQuery,daemon=True)
         self.__stopEvent=threading.Event()
         self.__wsConn=wsConn
+        self.clientCtx = context  # Store the user's JWT or auth context
 
     def start(self):
         plan_bytes = tobytes(json.dumps(self.QueryPlan))
@@ -62,5 +64,5 @@ class queryContext:
 
 
 
-    
+
 

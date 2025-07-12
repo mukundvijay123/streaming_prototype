@@ -11,7 +11,7 @@ from datetime import datetime
 import pyarrow as pa
 import json
 import uvicorn
-from clientUtils import subscribe, unsubscribe
+from clientUtils import subscribe, unsubscribe,clientCtx, check_access_async
 
 app = FastAPI()
 
@@ -81,13 +81,23 @@ async def websocket_handler(websocket: WebSocket):
             message = await websocket.receive_json()
             action = message.get("action")
             topic = message.get("topic")
+            token = message.get("token")
 
             if action == "subscribe" and topic:
+                if not token:
+                    await websocket.send_text("Error: Token required for subscription.")
+                    continue
+                context=clientCtx(token)
+                # RBAC: check access for the topic
+                allowed = await check_access_async("http://localhost:8081/check", context.token, topic, context.action)
+                if not allowed:
+                    await websocket.send_text("Error: Not authorized to subscribe to topic.")
+                    continue
                 if not system_metadata.hasTopic(topic):
                     # Dynamically add the topic and subscribe to it from Service A
                     print(f"[{datetime.now().isoformat()}] [WebSocket] Topic '{topic}' not found. Subscribing...")
                     system_metadata.addTopic(topic)
-                    subscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
+                    subscribe(topic, "grpc://127.0.0.1:8815", "grpc://127.0.0.1:8816",context)
                     print(f"[{datetime.now().isoformat()}] [WebSocket] Subscribed to topic '{topic}'")
 
                 system_metadata.addConsumer(topic, websocket)
@@ -100,7 +110,6 @@ async def websocket_handler(websocket: WebSocket):
                         system_metadata.removeConsumer(topic, websocket)
                         subscribed_topics.remove(topic)
                         print(f"[{datetime.now().isoformat()}] [WebSocket] Client unsubscribed from topic '{topic}'")
-
                         # Unsubscribe from Service A if no clients are subscribed
                         if system_metadata.getSubscriberCount(topic) == 0:
                             print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
@@ -108,7 +117,6 @@ async def websocket_handler(websocket: WebSocket):
                             system_metadata.removeTopic(topic)
                 except Exception as e:
                     print(f"[{datetime.now().isoformat()}] [WebSocket] Error during unsubscribe: {e}")
-
             else:
                 print(f"[{datetime.now().isoformat()}] [WebSocket] Unknown action: {action}")
 
@@ -121,7 +129,6 @@ async def websocket_handler(websocket: WebSocket):
                 print(f"[{datetime.now().isoformat()}] [WebSocket] No clients left for topic '{topic}'. Unsubscribing...")
                 unsubscribe(topic, RemoteAddress="grpc://127.0.0.1:8815", FlightServerAddress="grpc://127.0.0.1:8816")
                 system_metadata.removeTopic(topic)
-
     except Exception as e:
         print(f"[{datetime.now().isoformat()}] [WebSocket] Error: {e}")
 

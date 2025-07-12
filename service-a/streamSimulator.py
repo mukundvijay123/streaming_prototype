@@ -14,7 +14,9 @@ def queryDB(conn,queue_map:QueueMap):
     topics=['TSLA','AMZN','HPE']
     while True:
         for topic in topics:
+
             query = "SELECT * FROM stock2 WHERE timestamp = $1 AND stock_symbol = $2;"
+
             cursor.execute(query, (timeQuery,topic))
             event = cursor.fetch_arrow_table()  # ADBC supports Arrow format
             topic_metadata={"topic".encode():topic.encode()}
