@@ -112,6 +112,7 @@
         }
 
         public void startQuery(){
+            //this shouldnt be used
             try{
                 CreatePipeline();
                 CreateQueueMap();

@@ -16,6 +16,8 @@ class FlightServer(flight.FlightServerBase):
         self.authBaseURL="http://localhost:8081/check"
 
     def __GetStreamSchema(self,topic):
+        if isinstance(topic, bytes):
+            topic = topic.decode("utf-8")
         cursor=self.adbcConn.cursor()
         query=("SELECT * FROM stock_prices_4 WHERE stock_symbol = $1 LIMIT 5;")
         cursor.execute(query,(topic,))
@@ -57,7 +59,33 @@ class FlightServer(flight.FlightServerBase):
         
         raise flight.FlightServerError("Unsupported descriptor type or missing topic")
 
+
+
+
+    def list_flights(self,context,criteria):
+        flights=[]
+        for topic in self.systemMetadata.readTopics():
+            try:
+                schema=self.__GetStreamSchema(topic)
+            except Exception as e:
+                continue
+            descriptor = flight.FlightDescriptor.for_path(topic.encode())
+            endpoint = flight.FlightEndpoint(
+                ticket=flight.Ticket(topic.encode()),
+                locations=[flight.Location.for_grpc_tcp("localhost", 8815)]
+            )
+            flight_info = flight.FlightInfo(
+                schema=schema,
+                descriptor=descriptor,
+                endpoints=[endpoint],
+                total_records=0,
+                total_bytes=0
+            )
+            flights.append(flight_info)
+        return iter(flights)
     
+
+
     def list_actions(self,context):
         return[
             ("subscribe","subscribe to the stream"),

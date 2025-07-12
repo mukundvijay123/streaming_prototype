@@ -16,6 +16,9 @@ import org.apache.beam.sdk.values.PCollection;
 import org.apache.beam.sdk.values.Row;
 import org.joda.time.Instant;
 
+
+
+
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.List;
@@ -24,7 +27,12 @@ import java.util.Random;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+
+
+
 public class SimpleQueuePipeline {
+
+
 
     private static final Schema ROW_SCHEMA = Schema.builder()
             .addInt32Field("k")
@@ -32,6 +40,9 @@ public class SimpleQueuePipeline {
             .addStringField("value")
             .addDateTimeField("event_time")
             .build();
+
+
+
 
     /**
      * Simple checkpoint mark implementation
@@ -45,6 +56,9 @@ public class SimpleQueuePipeline {
         public void finalizeCheckpoint() throws IOException {
         }
     }
+
+
+
 
     /**
      * Unbounded source implementation that produces Row objects directly
@@ -64,6 +78,10 @@ public class SimpleQueuePipeline {
             //WE GET THIS DATA FROM ARROW FLIGHT
             QUEUE.add(row);
         }
+
+
+
+
 
         @Override
         public List<? extends UnboundedSource<Row, SimpleCheckpoint>> split(
@@ -100,6 +118,11 @@ public class SimpleQueuePipeline {
                 this.source = source;
                 this.watermark = Instant.now();
             }
+
+
+
+
+
 
             @Override
             public boolean start() throws IOException {
@@ -159,6 +182,12 @@ public class SimpleQueuePipeline {
             }
         }
     }
+
+
+
+
+
+
 
     /**
      * DoFn to display SQL query results dynamically, without hardcoding field names

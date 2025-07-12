@@ -37,6 +37,7 @@ debug.log
 
 # IDE / Editor specific files
 .vscode/
+.gemini/
 .idea/
 *.swp
 *.swo
