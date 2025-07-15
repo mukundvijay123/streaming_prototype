@@ -6,7 +6,8 @@ from scheduler import Scheduler
 from flightServer import FlightServer
 import threading
 from utils import add_topic_to_system
-import requests  # Add this import for HTTP requests
+
+
 
 JAVA_SERVER_ADDRESS = "http://127.0.0.1:8080"  # Address of the Calcite server
 
@@ -42,7 +43,7 @@ CREATE TABLE IF NOT EXISTS {topic_name} (
 """
 
 # Add topics to the system
-for topic in ["ABC", "XYZ", "LMN"]:
+for topic in ["AMZN", "HPE", "TSLA"]:
     schema = schema_template.format(topic_name=topic)
     add_topic_to_system(topic, schema,JAVA_SERVER_ADDRESS,system_metadata,queue_map)
 
